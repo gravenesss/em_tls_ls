@@ -91,14 +91,17 @@ def test_em():
     pass
 
 
-data_dir = 'data/dataset.csv'
-# this_noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641606, 0.36620947])
-this_noise_pattern = np.array([1.19143622, 1.47466608, 0.72362853, 1.11948969, 1.80730452, 1.81332756])
-data_x, data_y = getXy_fn(data_dir, [9, 10, 12, 13, 16])  # 使用更多特征，noise_pattern长度也得是特征个数加1
+data_path = 'data/build_feature.csv'
+# ['cell_key', 'D1/F1', 'V1/D2/F2', 'D3', 'D4', 'F3', 'F4', 'D5/F5', 'D6', 'F6', 'F7', 'F8', 'F9', 'cycle_life']
+select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']  # 'V1/D2/F2'
+data_x, data_y = getNewXy_fn(data_path, select_feature)
 print("y取以10为底的对数")  # 取不取对数，em效果一致。
 # ①注释掉 + convert_y='1' 使用原始数据； ②不注释+convert_y = '1'使用对数数据计算rmse；③ 不注释+convert_y = 'log10'，计算rmse还原
 data_y = np.log10(data_y)
-convert_y = 'log10'  # 判断是否进行还原，log10 进行还原，1不还原
+convert_y = '1'  # 判断是否进行还原，log10 进行还原，1不还原
+
+# this_noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641606, 0.36620947])
+this_noise_pattern = np.array([1.19143622, 1.47466608, 0.72362853, 1.11948969, 1.80730452, 1.81332756])
 seed = 42
 
 
@@ -108,17 +111,17 @@ if __name__ == '__main__':
     # eta_now = [1.2, 1.1, 1.0, 1.1, 1.3]
     # test_tls(eta_now, True)
 
-    test_em()
+    # test_em()
 
     pass
 
 
 '''
 Tls: 添加随机噪声。
-[1.0, 1.0, 1.0, 1.0, 1.0]
+[1.0, 1.0, 1.0, 1.0, 1.0] rmse:  0.21389833764862348
 rmse:  0.07885943282835027
-[0.7, 0.8, 0.9, 0.8, 0.7]
+[0.7, 0.8, 0.9, 0.8, 0.7] rmse:  0.233447485522436
 rmse:  0.08164049846471948
-[1.2, 1.1, 1.0, 1.1, 1.3]
+[1.2, 1.1, 1.0, 1.1, 1.3] rmse:  0.202614076223779
 rmse:  0.07770453843911672
 '''
