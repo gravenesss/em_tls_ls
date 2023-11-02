@@ -316,7 +316,7 @@ def em_tls(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_dis_
         eta_inv = (E_std + correct) / (r_std + correct)
         for i in range(m):
             diag_x[i][i] = eta[i]
-            diag_x_inv[i][i] = eta_inv[i]  # todo 修改了[i][i]
+            diag_x_inv[i][i] = eta_inv[i]
 
         # 如果两次迭代的参数差距小于 w_dis_epsilon 则结束循环
         if w_pre is None:
@@ -396,7 +396,6 @@ def em_tls1(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_dis
     sorted_data = sorted(zip(rmse_list, wb_list))
     mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]
 
-    # todo: 新加的 → 最后还原
     mid_rmse, _ = get_rmse_loss_restore(x_test, y_test, mid_wb[0:5], mid_wb[5], convert_y)
     # midia_rmse = np.median(new_rmses)
     return mid_rmse, mid_wb

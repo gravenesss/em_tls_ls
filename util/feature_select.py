@@ -7,7 +7,7 @@ from scipy.stats import spearmanr
 
 
 # ok： 均已经测试
-DATA_DIR = '../../data/dataset.csv'
+DATA_DIR = '../data/dataset.csv'
 IMAGE_DIR = 'feature_images'
 
 
@@ -16,8 +16,8 @@ plt.rcParams['font.family'] = ['SimSun']
 
 
 # 获取指定特征x及循环寿命 [9, 10, 12, 14, 16]
-def getXy_fn(feature_list):
-    data = pd.read_csv(DATA_DIR)
+def getXy_fn(file_dir, feature_list):
+    data = pd.read_csv(file_dir)
     print('使用的特征为：', feature_list)
     data_x = data.iloc[:, feature_list].values
     data_y = data.iloc[:, 17].values.reshape(-1, 1)
@@ -25,8 +25,8 @@ def getXy_fn(feature_list):
 
 
 # 获取指定特征x及循环寿命 ['F2', 'F3', 'F5', 'F6', 'F9']
-def getXyByStr_fn(feature_str):
-    data_all = pd.read_csv(DATA_DIR)
+def getXyByStr_fn(file_dir, feature_str):
+    data_all = pd.read_csv(file_dir)
     print('使用的特征为：', feature_str)
     data_x = data_all[feature_str]
     data_y = data_all[['cyclelife']]
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         select_feature = range(8, 17)
         print(select_feature)
         feature_names = [str(i) for i in select_feature]
-        dataX, dataY = getXy_fn(select_feature)
+        dataX, dataY = getXy_fn(DATA_DIR, select_feature)
 
         calFeaRulCorrelation_fn(dataX, dataY, feature_names, filename='all_9features_y.png')
         plotHeatMap_fn(dataX, dataY, filename='all_9features_y_heatmap.png')
@@ -110,7 +110,7 @@ if __name__ == '__main__':
         select_feature = [f'F{i}' for i in range(1, 10)]   # ['F2', 'F3', 'F5', 'F6', 'F9']
         print(select_feature)
         feature_names = select_feature
-        dataX, dataY = getXyByStr_fn(select_feature)
+        dataX, dataY = getXyByStr_fn(DATA_DIR, select_feature)
         dataY = np.log10(dataY)
 
         calFeaRulCorrelation_fn(dataX, dataY, feature_names, filename='all_F_features_log10_y.png')

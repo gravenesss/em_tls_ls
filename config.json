@@ -1,0 +1,6 @@
+{
+  "w_epsilon": 1e-6,
+  "correct": 1e-4,
+  "RES_DIR": "result"
+
+}

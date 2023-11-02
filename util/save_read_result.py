@@ -27,7 +27,7 @@ def save_df(comments, header, df, file_dir, file_name):
 
 
 # 保存 x, y... x_labels, y_labels 到 file_dir/file_name  ---- y 以行 的形式保存。
-def save_csv_row(x, ys, x_labels, y_labels, comments, file_dir, file_name):
+def saveCsvRow_fn(x, ys, x_labels, y_labels, comments, file_dir, file_name):
     data_all = [x] + ys
     header = [x_labels] + y_labels
     df = pd.DataFrame(data_all, header)
@@ -36,7 +36,7 @@ def save_csv_row(x, ys, x_labels, y_labels, comments, file_dir, file_name):
 
 
 # 保存 x, y... x_labels, y_labels 到 file_dir/file_name  ---- y 以列 的形式保存。
-def save_csv_col(x, ys, x_labels, y_labels, comments, file_dir, file_name):
+def saveCsvCol_fn(x, ys, x_labels, y_labels, comments, file_dir, file_name):
     header = [x_labels] + y_labels
     df = pd.DataFrame()
     df[x_labels] = x
@@ -80,7 +80,7 @@ def get_df(filename, row_or_col):
 
 
 # 读取保存的csv文件中的 rmse 进行绘制， 按行读取 todo: 可以附加绘制 wb 的情况
-def plot_csv_row(filename):
+def plotCsvRow_fn(filename):
     header, df = get_df(filename, 'row')
 
     x = df[header[0]].astype(float)
@@ -99,7 +99,7 @@ def plot_csv_row(filename):
 
 
 # 读取保存的csv文件中的 rmse 进行绘制， 按列读取
-def plot_csv_col(filename):
+def plotCsvCol_fn(filename):
     header, df = get_df(filename, 'col')
 
     x = df[header[0]].astype(float)
@@ -137,16 +137,16 @@ if __name__ == '__main__':
           0.12941284905072165, 0.1282258634764192, 0.12825218670420238, 0.1261821833333604, 0.1200409820328712]
 
     if save_or_read == 1:
-        save_csv_row(sequence, [tls, em], 'train_ratio', ['tls_rmse', 'em_rmse'], now_comment, 'save_csv', "train1.csv")
+        saveCsvRow_fn(sequence, [tls, em], 'train_ratio', ['tls_rmse', 'em_rmse'], now_comment, 'save_csv', "train1.csv")
         pass
     elif save_or_read == 2:
-        plot_csv_row('save_csv/train1.csv')
+        plotCsvRow_fn('save_csv/train1.csv')
         pass
     elif save_or_read == 3:
-        save_csv_col(sequence, [tls, em], 'train_ratio', ['tls_rmse', 'em_rmse'], now_comment, 'save_csv', "train3.csv")
+        saveCsvCol_fn(sequence, [tls, em], 'train_ratio', ['tls_rmse', 'em_rmse'], now_comment, 'save_csv', "train3.csv")
         pass
     elif save_or_read == 4:
-        plot_csv_col('save_csv/train3.csv')
+        plotCsvCol_fn('save_csv/train3.csv')
         pass
 
     pass

@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from feature_select import getXyByStr_fn
+from util.feature_select import getXyByStr_fn
 
 # notok： 得提供数据进行测试 plot_xys, plot_x_wbs
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号。画图之前调用

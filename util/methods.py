@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.linear_model import LinearRegression, ElasticNet, Lasso
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
@@ -7,7 +8,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import mean_squared_error
-from loss import getLossByWb_fn
+from util.loss import getLossByWb_fn
 
 
 # 求模型参数w, Y=WX+b (X^T X)^-1 X^T y。 直接使用 x_new, y_new 进行计算
@@ -74,12 +75,12 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
 
     while flag:
         # 1.计算w
-        w1 = tls_fn(np.dot(x_now, diag_x), y_now)  # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
-        w_std = np.dot(diag_x, w1)  # m*m * m*1
-        print("w_std.shape", w_std.shape, 'type:', type(w_std))
+        w1 = tls_fn(np.dot(x_now, diag_x), y_now)   # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
+        w_std = np.dot(diag_x, w1)                  # m*m * m*1 = m*1 m=5
+        # print("w_std.shape", w_std.shape, 'type:', type(w_std))
         # 还原 w 计算 rmse
         w_original, b_original = getWb_fn(w_std, y_std / x_std, m, x_mean, y_mean)
-        rmse = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse')
+        rmse = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
         wb_list.append(np.vstack((w_original, b_original)))
         rmse_list.append(rmse)
 
@@ -87,11 +88,11 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
         w_t = np.transpose(w_std).reshape(1, -1)
         diag_x_inv2 = np.dot(diag_x_inv, diag_x_inv)
         denominator = np.dot(np.dot(w_t, diag_x_inv2), w_std) + 1  # wt: 1*m tmp_x:m*m  w:m*1
-        r_up = (np.dot(x_now, w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1
+        r_up = (np.dot(x_now, w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
         r = r_up / denominator  # 1*1
-        E_up = -np.dot(np.dot(r_up, w_t), diag_x_inv2)  # n*1 * 1*m * m*m => n*m
+        E_up = -np.dot(np.dot(r_up, w_t), diag_x_inv2)  # n*1 * 1*m * m*m => n*m 111*5
         E = E_up / denominator
-        print("E.shape:", E.shape, 'type:', type(E), "  r.shape:", r.shape, 'type:', type(r))
+        # print("E.shape:", E.shape, 'type:', type(E), "  r.shape:", r.shape, 'type:', type(r))
 
         # 3.更新sigma_x：根据样本误差的方差 和 标签误差的方差
         E_std = CalStd_fn(E)
@@ -112,14 +113,13 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
             w_pre = w_std
             flag = False if gap <= w_epsilon else True
 
-    # plt.plot([x+1 for x in range(len(rmse_list))], rmse_list)
-    # plt.show()
+    plt.plot([x+1 for x in range(len(rmse_list))], rmse_list)
+    plt.show()
 
-    print(rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
+    print("rmse==== ==== ==== ==== ====\n", rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
     sorted_data = sorted(zip(rmse_list, wb_list))  # 要根据 rmse_list 排序，需要记录
-    print("sorted_data==== ==== ==== ==== ====\n", sorted_data)
+    # print("sorted_data==== ==== ==== ==== ====\n", sorted_data)
     mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]
-    mid_rmse = getLossByWb_fn(x_test, y_test, mid_wb[0:5], mid_wb[5], convert_y=convert_y)  # todo: 新加的 → 最后还原
     return mid_rmse, mid_wb
 
 
@@ -169,4 +169,9 @@ def modelPredict_fn(x, y, x_test, y_test, model_name, convert_y='1', poly=2):
 
     rmse = np.sqrt(mean_squared_error(y_test, y_predict))
     return rmse
+    pass
+
+
+if __name__ == '__main__':
+
     pass
