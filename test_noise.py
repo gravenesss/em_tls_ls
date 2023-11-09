@@ -81,7 +81,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                 # B. 进行训练
                 tls_w_std = tls_fn(x_new, y_new)  # 使用已经进行标准化的数据。tls内部未进行标准化  w未进行还原
                 tls_w, tls_b = getWb_fn(tls_w_std, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
-                tls_err, _ = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse')
+                tls_err = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse')
                 # em 结果
                 em_err, em_wb1 = em_fn(x_new, y_new, m, x_std_now, y_std_now, x_mean_now, y_mean_now,
                                        x_test, y_test, w_epsilon, correct)
@@ -89,7 +89,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                 # ls
                 ls_w_std = ls_fn(x_new, y_new)
                 ls_w, ls_b = getWb_fn(ls_w_std, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
-                ls_err, _ = getLossByWb_fn(x_test, y_test, ls_w, ls_b, err_type='rmse')
+                ls_err = getLossByWb_fn(x_test, y_test, ls_w, ls_b, err_type='rmse')
 
                 # C. 记录每次实验的 rmse 和 wb  tls
                 tmp_tls_rmse.append(tls_err)
@@ -158,18 +158,18 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     x_label = 'Increase of Noise Ratio'
     plotXYs_fn(noise_sequence,
                [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse],
-               ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
-               x_label, 'RMSE', NOW_DIR, 'noise_all.png', title)
-    plotXYs_fn(noise_sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], ['tls', 'em', 'ls'], ['s', 'p', 'o'],
-               x_label, 'RMSE', NOW_DIR, 'noise_part.png', title)
+               x_label, 'RMSE', ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
+               NOW_DIR, 'noise_all.png', title)
+    plotXYs_fn(noise_sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], x_label, 'RMSE',
+               ['tls', 'em', 'ls'], ['s', 'p', 'o'], NOW_DIR, 'noise_part.png', title)
 
     # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
     feature_len = len(select_feature)
-    plotXWbs_fn(noise_sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
-                x_label, feature_len, NOW_DIR, 'noise_w.png')
+    plotXWbs_fn(noise_sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], x_label, ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
+                feature_len, NOW_DIR, 'noise_w.png')
 
     # 3. 保存训练数据  类型+耗时； 数据+w 同；  类型+步长；  两层：划分数据集、随机噪声
-    comments = ['噪声比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + feature_select,
+    comments = ['噪声比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + str(select_feature),
                 'hyperparameter：w_dis_epsilon：' + str(w_epsilon) + ',correct:' + str(correct),
                 'noise_pattern ：' + str(noise_pattern),
                 'noise_scale=  ：' + str(noise_min) + ' => ' + str(noise_max) + '(步长' + str(step) + ')',
@@ -204,17 +204,21 @@ def random_search(random_seeds, only_test=True):
         NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
         os.makedirs(NOW_DIR)  # 使用 mkdir 函数创建新文件夹
         if only_test:
-            noise_increase(0.2, 0.225, 0.025, test_ratio=0.1, split_num=100, noise_loop=100)
+            noise_increase(0.2, 0.2, 0.025, test_ratio=0.1, split_num=100, noise_loop=100)
         else:
             noise_increase(0.05, 0.5, 0.05, test_ratio=0.1, split_num=100, noise_loop=100)
     pass
 
 
-select_feature = [9, 10, 12, 13, 16]  # 2 3 5 6 9  select_feature = [9, 10, 12, 14, 16]  # 2 3 5 7 9
-feature_select = ' '.join(str(x) for x in select_feature)
-data_x, data_y = getXy_fn(select_feature)
-print("y取以10为底的对数")
+data_path = 'data/build_feature.csv'
+# ['cell_key', 'D1/F1', 'V1/D2/F2', 'D3', 'D4', 'F3', 'F4', 'D5/F5', 'D6', 'F6', 'F7', 'F8', 'F9', 'cycle_life']
+select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']  # 'V1/D2/F2'
+data_x, data_y = getNewXy_fn(data_path, select_feature)
+print("y取以10为底的对数")  # 取不取对数，em效果一致。
+# ①注释掉 + convert_y='1' 使用原始数据； ②不注释+convert_y = '1'使用对数数据计算rmse；③ 不注释+convert_y = 'log10'，计算rmse还原
 data_y = np.log10(data_y)
+convert_y = '1'  # 判断是否进行还原，log10 进行还原，1不还原
+
 
 if __name__ == '__main__':
     random_search(list(range(1, 2)), False)

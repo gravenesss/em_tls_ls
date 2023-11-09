@@ -25,7 +25,7 @@ from scipy.stats import spearmanr
 
 # 获取指定特征x及循环寿命 [9, 10, 12, 14, 16]
 def get_feature(feature_list):
-    data = pd.read_csv('../../data/dataset.csv')
+    data = pd.read_csv('../data/dataset.csv')
     print('使用的特征为：', feature_list)
     data_x = data.iloc[:, feature_list].values
     data_y = data.iloc[:, 17].values.reshape(-1, 1)
@@ -35,7 +35,7 @@ def get_feature(feature_list):
 # 获取指定特征x及循环寿命 ['F2', 'F3', 'F5', 'F6', 'F9']
 # 如果要和get_feature返回的结果一致： data_x, data_y = data_x.iloc[,],
 def get_xy_by_str(feature_str):
-    data_all = pd.read_csv('../../data/dataset.csv')
+    data_all = pd.read_csv('../data/dataset.csv')
     print('使用的特征为：', feature_str)
     data_x = data_all[feature_str]
     data_y = data_all[['cyclelife']]

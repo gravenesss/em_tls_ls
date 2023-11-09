@@ -1,4 +1,4 @@
-from sklearn.model_selection import train_test_split
+import json
 from sklearn.preprocessing import scale
 from datetime import datetime
 from tqdm import trange
@@ -7,14 +7,23 @@ from util.methods import *
 from util.plot_result import *
 from util.save_read_result import *
 
+# 读取变量值：超参数、输出位置
+with open("config.json") as f:
+    variable = json.load(f)
+w_epsilon = variable["w_epsilon"]
+correct = variable["correct"]
+RES_DIR = variable["RES_DIR"]
+NOW_DIR = ''
+noise_pattern = np.array([])
+
 
 # not modify
 def train_data_increase(train_min, train_max, step, noise_ratio, split_num, noise_loop):
     seq_len = int(np.round((train_max + step - train_min) / step))
-    sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
+    train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
     data_size = len(data_x)
     test_last_10 = int(data_size * 0.1)  # 未进行四舍五入
-    print(sequence, len(sequence))
+    print(train_sequence, len(train_sequence))
 
     # 0. 记录 tls 和 em 的结果
     mid_tls_rmse, mid_tls_wb = [], []
@@ -27,7 +36,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
     start = datetime.now().strftime("%H:%M:%S")
     # 1）训练集比例依次增加
     for train_id in trange(seq_len, desc='Progress', unit='loop'):
-        train_size = int(round(data_size * sequence[train_id]))  # 四舍五入了
+        train_size = int(round(data_size * train_sequence[train_id]))  # 四舍五入了
         # print("train_size:", train_size, 'test_size:', test_last_10)
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
@@ -74,7 +83,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
                 # B. 进行训练
                 tls_w_std = tls_fn(x_new, y_new)  # 使用已经进行标准化的数据。tls内部未进行标准化  w未进行还原
                 tls_w, tls_b = getWb_fn(tls_w_std, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
-                tls_err, _ = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse')
+                tls_err = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse')
                 # em 结果
                 em_err, em_wb1 = em_fn(x_new, y_new, m, x_std_now, y_std_now, x_mean_now, y_mean_now,
                                        x_test, y_test, w_epsilon, correct)
@@ -82,7 +91,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
                 # ls
                 ls_w_std = ls_fn(x_new, y_new)
                 ls_w, ls_b = getWb_fn(ls_w_std, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
-                ls_err, _ = getLossByWb_fn(x_test, y_test, ls_w, ls_b, err_type='rmse')
+                ls_err = getLossByWb_fn(x_test, y_test, ls_w, ls_b, err_type='rmse')
 
                 # C. 记录每次实验的 rmse 和 wb  tls
                 tmp_tls_rmse.append(tls_err)
@@ -99,6 +108,8 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
                 tmp_elastic_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'en'))
                 # Lasso
                 tmp_lasso_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'lasso'))
+
+        pass
 
         # 记录 随机划分数据集 × 随机噪声 组 的中位数 tls
         sorted_data = sorted(zip(tmp_tls_rmse, tmp_tls_wb))
@@ -148,28 +159,70 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
     # 1. 绘制 rmse 图像  title、x_label、file_name的前缀 的不一样
     title = "Training VS RMSE\n" + '  随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(noise_loop)
     x_label = 'Proportion of Training Data'
-    plotXYs_fn(sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse],
-               ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
-               x_label, 'RMSE', NOW_DIR, 'train_all.png', title)
-    plotXYs_fn(sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], ['tls', 'em', 'ls'], ['s', 'p', 'o'],
-               x_label, 'RMSE', NOW_DIR, 'train_part.png', title)
+
+    plotXYs_fn(train_sequence,
+               [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse],
+               x_label, 'RMSE', ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
+               NOW_DIR, 'train_all.png', title)
+    plotXYs_fn(train_sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], x_label, 'RMSE',
+               ['tls', 'em', 'ls'], ['s', 'p', 'o'], NOW_DIR, 'train_part.png', title)
 
     # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
     feature_len = len(select_feature)
-    plotXWbs_fn(sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
-                x_label, feature_len, NOW_DIR, 'train_w.png')
+    plotXWbs_fn(train_sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], x_label, ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
+                feature_len, NOW_DIR, 'train_w.png')
 
     # 3. 保存训练数据  类型+耗时； 数据+w 同；  类型+步长；
-    comments = ['训练集比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + feature_select,
-                'hyperparameter：w_dis_epsilon：' + str(w_dis_epsilon) + ',correct:' + str(correct),
+    comments = ['训练集比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + str(select_feature),
+                'hyperparameter：w_dis_epsilon：' + str(w_epsilon) + ',correct:' + str(correct),
                 'noise_pattern ：' + str(noise_pattern),
                 'noise_scale   ：' + str(noise_ratio),
                 'train_ratio=  ：' + str(train_min) + ' => ' + str(train_max) + '(步长' + str(step) + ')',
                 '训练次数：' + str(split_num),
                 '随机生成噪声次数：' + str(noise_loop)]
-    saveCsvRow_fn(sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse,
-                             mid_tls_wb.tolist(), mid_em_wb.tolist(), mid_ls_wb.tolist()],
+    saveCsvRow_fn(train_sequence,
+                  [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse,
+                   mid_tls_wb.tolist(), mid_em_wb.tolist(), mid_ls_wb.tolist()],
                   'train_ratio',
                   ['tls_rmse', 'em_rmse', 'ls-rmse', 'linear_rmse', 'en_rmse', 'lasso_rmse', 'tls_wb', 'em_wb',
                    'ls_wb'],
                   comments, NOW_DIR, "train.csv")
+
+
+def random_search(random_seeds, only_test=True):
+    global noise_pattern
+    global RES_DIR
+    global NOW_DIR
+
+    if only_test:
+        print("onlyTest========================================")
+    else:
+        print("trueExperiment=================================")
+
+    for random_id in trange(len(random_seeds), desc='Random Process', unit='loop'):
+        np.random.seed(random_seeds[random_id])
+        noise_pattern = np.random.uniform(0.2, 2, 6)
+        # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        print(random_seeds[random_id], noise_pattern)
+
+        NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
+        os.makedirs(NOW_DIR)  # 使用 mkdir 函数创建新文件夹
+        if only_test:
+            train_data_increase(0.2, 0.2, 0.1, noise_ratio=0.2, split_num=100, noise_loop=100)
+        else:
+            train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=100, noise_loop=100)
+    pass
+
+
+data_path = 'data/build_feature.csv'
+# ['cell_key', 'D1/F1', 'V1/D2/F2', 'D3', 'D4', 'F3', 'F4', 'D5/F5', 'D6', 'F6', 'F7', 'F8', 'F9', 'cycle_life']
+select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']  # 'V1/D2/F2'
+data_x, data_y = getNewXy_fn(data_path, select_feature)
+print("y取以10为底的对数")  # 取不取对数，em效果一致。
+# ①注释掉 + convert_y='1' 使用原始数据； ②不注释+convert_y = '1'使用对数数据计算rmse；③ 不注释+convert_y = 'log10'，计算rmse还原
+data_y = np.log10(data_y)
+convert_y = '1'  # 判断是否进行还原，log10 进行还原，1不还原
+
+if __name__ == '__main__':
+    random_search(list(range(1, 2)), True)
+    pass

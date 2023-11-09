@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from sklearn.linear_model import LinearRegression, ElasticNet, Lasso
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
@@ -11,10 +11,14 @@ from sklearn.metrics import mean_squared_error
 from util.loss import getLossByWb_fn
 
 
+np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
+
+
 # 求模型参数w, Y=WX+b (X^T X)^-1 X^T y。 直接使用 x_new, y_new 进行计算
 def ls_fn(x_new, y_new):
-    std_W = np.dot(np.dot(np.linalg.inv(np.dot(x_new.T, x_new)), x_new.T), y_new)
-    return std_W
+    std_w = np.linalg.inv(x_new.T .dot(x_new)) .dot(x_new.T) .dot(y_new)
+    # std_W = np.dot(np.dot(np.linalg.inv(np.dot(x_new.T, x_new)), x_new.T), y_new)
+    return std_w
 
 
 # 求模型参数w,  x y 在 tls内部未进行标准化  w未进行还原
@@ -22,16 +26,21 @@ def tls_fn(std_X, std_Y):
     # 定义矩阵B
     B = np.vstack((np.hstack((np.dot(std_X.T, std_X), np.dot(-std_X.T, std_Y))),
                    np.hstack((np.dot(-std_Y.T, std_X), np.dot(std_Y.T, std_Y)))))
+    # print("B==== ==== ==== ==== \n", B)
 
     # 求B最小特征值对应的特征向量
     w, v = np.linalg.eigh(B)  # w特征值，v特征向量
     min_w_index = np.argsort(w)  # 最小特征值对应的下标，argsort(w)将w中的元素从小到大排列，输出其对应的下标
     min_w_v = v[:, min_w_index[0]].reshape(-1, 1)  # 最小特征值对应的特征向量
+    # print("特征值，特征向量：", w, v)
+    # print("min_value : ", w[min_w_index][0])
+    # print("min_vector: ", min_w_v)
 
     # 求模型参数
     n = std_X.shape[1]  # 输入特征的个数
-    std_W = (min_w_v[0:n] / min_w_v[n]).reshape(-1, 1)
-    return std_W
+    std_w = (min_w_v[0:n] / min_w_v[n]).reshape(-1, 1)
+    # print("w==== ==== ==== ==== \n", std_w)
+    return std_w
 
 
 # 通过标准化的w进行还原.
@@ -75,8 +84,8 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
 
     while flag:
         # 1.计算w
-        w1 = tls_fn(np.dot(x_now, diag_x), y_now)   # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
-        w_std = np.dot(diag_x, w1)                  # m*m * m*1 = m*1 m=5
+        w1 = tls_fn(x_now.dot(diag_x), y_now)   # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
+        w_std = diag_x.dot(w1)                  # m*m * m*1 = m*1 m=5
         # print("w_std.shape", w_std.shape, 'type:', type(w_std))
         # 还原 w 计算 rmse
         w_original, b_original = getWb_fn(w_std, y_std / x_std, m, x_mean, y_mean)
@@ -104,6 +113,7 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
         for i in range(m):
             diag_x[i][i] = eta[i]
             diag_x_inv[i][i] = eta_inv[i]
+        # print("diag_x.shape:", diag_x.shape, "\n", diag_x, "\ndiag_x_inv.shape:", diag_x_inv.shape, "\n", diag_x_inv)
 
         # 如果两次迭代的参数差距小于 w_epsilon 则结束循环
         if w_pre is None:
@@ -113,10 +123,10 @@ def em_fn(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsil
             w_pre = w_std
             flag = False if gap <= w_epsilon else True
 
-    plt.plot([x+1 for x in range(len(rmse_list))], rmse_list)
-    plt.show()
+    # plt.plot([x+1 for x in range(len(rmse_list))], rmse_list)
+    # plt.show()
+    # print("rmse==== ==== ==== ==== ====\n", rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
 
-    print("rmse==== ==== ==== ==== ====\n", rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
     sorted_data = sorted(zip(rmse_list, wb_list))  # 要根据 rmse_list 排序，需要记录
     # print("sorted_data==== ==== ==== ==== ====\n", sorted_data)
     mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]

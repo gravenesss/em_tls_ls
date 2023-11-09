@@ -5,15 +5,38 @@ from util.feature_select import *
 from util.methods import *
 from util.plot_result import *
 
-
 # 读取变量值：超参数、输出位置
 with open("config.json") as f:
     variable = json.load(f)
 w_epsilon = variable["w_epsilon"]
 correct = variable["correct"]
+
+
 # RES_DIR = variable["RES_DIR"]
 # NOW_DIR = ''
 # noise_pattern = np.array([])
+
+
+def my_tls(x, y):
+    B = np.vstack((np.hstack((x.T.dot(x), -x.T.dot(y))),  # 两层括号
+                   np.hstack((-y.T.dot(x), y.T.dot(y)))))
+    # print("B==== ==== ==== ==== \n", B)
+
+    eigen_values, eigen_vectors = np.linalg.eig(B)
+    min_eigenvalue_index = np.argmin(eigen_values)
+    min_eigenvector = eigen_vectors[:, min_eigenvalue_index]
+    print("特征值，特征向量：", eigen_values, eigen_vectors)
+    print("min_value : ", eigen_values[min_eigenvalue_index])
+    print("min_vector: ", min_eigenvector.reshape(-1, 1))
+    # min_eig_index = eigen_values.argmin()  # 最小特征值的索引
+    # min_eigenvector = eigen_vectors[:, min_eig_index]
+
+    n = x.shape[1]  # 特征个数
+    std_w = (min_eigenvector[0:n] / min_eigenvector[n]).reshape(-1, 1)
+    print("w==== ==== ==== ==== \n", std_w)
+
+    return std_w
+    pass
 
 
 # 标准化后的训练集；测试集；标准化前的均值，标准差。
@@ -51,7 +74,7 @@ def dataProcess_fn(test_size, add_noise):
 
 
 # 测试tls: eta为自己设定的值。
-def test_tls(eta, add_noise):
+def test_tls(eta, tls_type, add_noise):
     print("TLS Test ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ")
     x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = dataProcess_fn(0.1, add_noise)
     m = 1 if x_new.ndim == 1 else x_new.shape[1]
@@ -60,7 +83,12 @@ def test_tls(eta, add_noise):
     diag_x = np.eye(m)
     for i in range(m):
         diag_x[i][i] = eta[i]
-    w2 = tls_fn(np.dot(x_new, diag_x), y_new)  # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
+
+    # 计算 w
+    if tls_type == 1:
+        w2 = tls_fn(np.dot(x_new, diag_x), y_new)  # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
+    else:
+        w2 = my_tls(np.dot(x_new, diag_x), y_new)
     w_std2 = np.dot(diag_x, w2)  # m*m * m*1
     # 还原 w 计算 error
     tls_w2, tls_b2 = getWb_fn(w_std2, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
@@ -100,21 +128,25 @@ print("y取以10为底的对数")  # 取不取对数，em效果一致。
 data_y = np.log10(data_y)
 convert_y = '1'  # 判断是否进行还原，log10 进行还原，1不还原
 
+# select_feature = [9, 10, 12, 13, 16]  # 2 3 5 6 9  select_feature = [9, 10, 12, 14, 16]  # 2 3 5 7 9
+# data_x, data_y = getXy_fn(data_path, select_feature)
+# print("y取以10为底的对数")
+# data_y = np.log10(data_y)
+
 # this_noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641606, 0.36620947])
 this_noise_pattern = np.array([1.19143622, 1.47466608, 0.72362853, 1.11948969, 1.80730452, 1.81332756])
 seed = 42
-
 
 if __name__ == '__main__':
     # # eta_now = [1.0, 1.0, 1.0, 1.0, 1.0]
     # # eta_now = [0.7, 0.8, 0.9, 0.8, 0.7]
     # eta_now = [1.2, 1.1, 1.0, 1.1, 1.3]
-    # test_tls(eta_now, True)
+    # test_tls(eta_now, 1, True)
+    # test_tls(eta_now, 2, True)
 
-    # test_em()
+    test_em()
 
     pass
-
 
 '''
 Tls: 添加随机噪声。
