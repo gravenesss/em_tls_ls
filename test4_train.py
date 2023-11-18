@@ -17,13 +17,13 @@ NOW_DIR = ''
 noise_pattern = np.array([])
 
 
-# 对于 100 次的数据集划分 生成 50 次的噪声
-def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop):
-    seq_len = int(np.round((noise_max + step - noise_min) / step))  # 0.025 ~ 0.5 20个  0.05~0.5 10个
-    noise_sequence = [round(x, 3) for x in np.linspace(noise_min, noise_max + step, seq_len, endpoint=False)]
+# not modify
+def train_data_increase(train_min, train_max, step, noise_ratio, split_num, noise_loop):
+    seq_len = int(np.round((train_max + step - train_min) / step))
+    train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
     data_size = len(data_x)
-    test_last_10 = int(data_size * test_ratio)  # 未进行四舍五入
-    print(noise_sequence, len(noise_sequence))
+    test_last_10 = int(data_size * 0.1)  # 未进行四舍五入
+    print(train_sequence, len(train_sequence))
 
     # 0. 记录 tls 和 em 的结果
     mid_tls_rmse, mid_tls_wb = [], []
@@ -34,9 +34,10 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     mid_lasso_rmse = []
 
     start = datetime.now().strftime("%H:%M:%S")
-    # 1）噪声比例以此增大      # for now_id, noise_ratio in enumerate(noise_sequence):
-    for now_id in trange(seq_len, desc='Progress', unit='loop'):
-        noise_ratio = noise_sequence[now_id]
+    # 1）训练集比例依次增加
+    for train_id in trange(seq_len, desc='Progress', unit='loop'):
+        train_size = int(round(data_size * train_sequence[train_id]))  # 四舍五入了
+        # print("train_size:", train_size, 'test_size:', test_last_10)
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
         tmp_ls_rmse, tmp_ls_wb = [], []
@@ -44,7 +45,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         tmp_elastic_rmse = []
         tmp_lasso_rmse = []
 
-        # 2）随机划分数据集
+        # 2）随机划分数据集集
         for split in range(split_num):
             np.random.seed(split)
             random_indices = np.random.permutation(data_size)  # 随机排序
@@ -53,8 +54,9 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
             # 选取最后 10% 的数据作为 测试集合
             x_test = now_all_x[-test_last_10:]
             y_test = now_all_y[-test_last_10:]
-            x = now_all_x[:-test_last_10]
-            y = now_all_y[:-test_last_10]
+            # 选取前 ratio 的数据作为训练集  有区别
+            x = now_all_x[:train_size]
+            y = now_all_y[:train_size]
             m = 1 if x.ndim == 1 else x.shape[1]
             x_std_pre = np.std(x, axis=0)  # 噪声标准差使用之前的 std
             y_std_pre = np.std(y, axis=0)
@@ -100,12 +102,14 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                 # ls
                 tmp_ls_rmse.append(ls_err)
                 tmp_ls_wb.append(np.vstack((ls_w, ls_b)).flatten().tolist())
-                # linear 添加噪声后的数据: convert_y 默认为'1'
+                # linear 添加噪声后的数据  convert_y 默认设置为 '1'
                 tmp_linear_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'linear'))
                 # elasticNet
                 tmp_elastic_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'en'))
                 # Lasso
                 tmp_lasso_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'lasso'))
+
+        pass
 
         # 记录 随机划分数据集 × 随机噪声 组 的中位数 tls
         sorted_data = sorted(zip(tmp_tls_rmse, tmp_tls_wb))
@@ -136,7 +140,6 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         mid_lasso_rmse.append(tmp_lasso_rmse[len(tmp_lasso_rmse) // 2])
 
     end = datetime.now().strftime("%H:%M:%S")
-
     print(start + " -- " + end)
     print("tls    : ", mid_tls_rmse)
     print("em     : ", mid_em_rmse)
@@ -153,36 +156,37 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     # print("中位数-tls-wb ：", mid_tls_wb)
     # print("中位数-em-wb  ：", mid_em_wb)
 
-    # 1. 绘制 rmse 图像
-    title = "Training VS RMSE\n" + '随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(noise_loop)
-    x_label = 'Increase of Noise Ratio'
-    plotXYs_fn(noise_sequence,
+    # 1. 绘制 rmse 图像  title、x_label、file_name的前缀 的不一样
+    title = "Training VS RMSE\n" + '  随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(noise_loop)
+    x_label = 'Proportion of Training Data'
+
+    plotXYs_fn(train_sequence,
                [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse],
                x_label, 'RMSE', ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
-               NOW_DIR, 'noise_all.png', title)
-    plotXYs_fn(noise_sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], x_label, 'RMSE',
-               ['tls', 'em', 'ls'], ['s', 'p', 'o'], NOW_DIR, 'noise_part.png', title)
+               NOW_DIR, 'train_all.png', title)
+    plotXYs_fn(train_sequence, [mid_tls_rmse, mid_em_rmse, mid_ls_rmse], x_label, 'RMSE',
+               ['tls', 'em', 'ls'], ['s', 'p', 'o'], NOW_DIR, 'train_part.png', title)
 
     # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
     feature_len = len(select_feature)
-    plotXWbs_fn(noise_sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], x_label, ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
-                feature_len, NOW_DIR, 'noise_w.png')
+    plotXWbs_fn(train_sequence, [mid_tls_wb, mid_em_wb, mid_ls_wb], x_label, ['tls', 'em', 'ls'], ['s', 'p', 'o', ],
+                feature_len, NOW_DIR, 'train_w.png')
 
-    # 3. 保存训练数据  类型+耗时； 数据+w 同；  类型+步长；  两层：划分数据集、随机噪声
-    comments = ['噪声比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + str(select_feature),
+    # 3. 保存训练数据  类型+耗时； 数据+w 同；  类型+步长；
+    comments = ['训练集比例增大', '耗时：' + str(start) + '=>' + str(end), '特征选择：' + str(select_feature),
                 'hyperparameter：w_dis_epsilon：' + str(w_epsilon) + ',correct:' + str(correct),
                 'noise_pattern ：' + str(noise_pattern),
-                'noise_scale=  ：' + str(noise_min) + ' => ' + str(noise_max) + '(步长' + str(step) + ')',
-                'train_ratio   ：' + str(1 - test_ratio),
-                '随机划分数据集次数：' + str(split_num),
-                '随机生成噪声次数 ：' + str(noise_loop)]
-    saveCsvRow_fn(noise_sequence,
+                'noise_scale   ：' + str(noise_ratio),
+                'train_ratio=  ：' + str(train_min) + ' => ' + str(train_max) + '(步长' + str(step) + ')',
+                '训练次数：' + str(split_num),
+                '随机生成噪声次数：' + str(noise_loop)]
+    saveCsvRow_fn(train_sequence,
                   [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse,
                    mid_tls_wb.tolist(), mid_em_wb.tolist(), mid_ls_wb.tolist()],
                   'train_ratio',
                   ['tls_rmse', 'em_rmse', 'ls-rmse', 'linear_rmse', 'en_rmse', 'lasso_rmse', 'tls_wb', 'em_wb',
                    'ls_wb'],
-                  comments, NOW_DIR, "noise.csv")
+                  comments, NOW_DIR, "train.csv")
 
 
 def random_search(random_seeds, only_test=True):
@@ -204,9 +208,9 @@ def random_search(random_seeds, only_test=True):
         NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
         os.makedirs(NOW_DIR)  # 使用 mkdir 函数创建新文件夹
         if only_test:
-            noise_increase(0.2, 0.2, 0.025, test_ratio=0.1, split_num=100, noise_loop=100)
+            train_data_increase(0.2, 0.2, 0.1, noise_ratio=0.2, split_num=100, noise_loop=100)
         else:
-            noise_increase(0.05, 0.5, 0.05, test_ratio=0.1, split_num=100, noise_loop=100)
+            train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=100, noise_loop=100)
     pass
 
 
@@ -219,7 +223,6 @@ print("y取以10为底的对数")  # 取不取对数，em效果一致。
 data_y = np.log10(data_y)
 convert_y = '1'  # 判断是否进行还原，log10 进行还原，1不还原
 
-
 if __name__ == '__main__':
-    random_search(list(range(1, 2)), False)
+    random_search(list(range(3, 4)), False)
     pass

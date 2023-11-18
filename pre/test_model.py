@@ -477,6 +477,6 @@ ratio_pattern = np.array([])
 
 if __name__ == '__main__':
     # test_em()
-    random_search(list(range(1, 2)), True, 1)
+    random_search(list(range(1, 5)), False, 0)
     # model_test()
     pass
