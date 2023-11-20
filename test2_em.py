@@ -40,7 +40,7 @@ def init1():
 # 测试 em 算法
 def test_em(cur_seed, add_noise=True):
     print("EM Test ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ")
-    x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = \
+    train_x, train_y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = \
         dataProcess_fn(data_x, data_y, noise_pattern, 0.1, add_noise, cur_seed)
     m = 1 if x_new.ndim == 1 else x_new.shape[1]
 
@@ -50,7 +50,7 @@ def test_em(cur_seed, add_noise=True):
     tls_err = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse', convert_y=convert_y)
 
     # em 结果 em中就可以确定是否还原y 计算rmse
-    em_err, em_wb1 = em_fn(x_new, y_new, x_std_now, y_std_now, x_mean_now, y_mean_now,
+    em_err, em_wb1 = em_fn(train_x, train_y, x_new, y_new, x_std_now, y_std_now, x_mean_now, y_mean_now,
                            x_test, y_test, w_epsilon, correct, convert_y=convert_y)
     # em_err = getLossByWb_fn(x_test, y_test, em_wb1[0:5], em_wb1[5], err_type='rmse', convert_y=convert_y)
 
@@ -96,7 +96,7 @@ noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641
 
 if __name__ == '__main__':
     init()
-    test_seed(3)  # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
+    test_seed(10)  # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
     # todo： 0的趋势和之前的不一样，找找问题； em最小化什么，把目标函数定义出来，看看结果。
     # test_pattern(10, 0)
 
