@@ -401,6 +401,85 @@ def em_tls1(x_now, y_now, m, x_std, y_std, x_mean, y_mean, x_test, y_test, w_dis
     return mid_rmse, mid_wb
 
 
+# 通过标准化的w进行还原.  w_std:5*1  m*1
+# ls_w, ls_b = getWb_fn(ls_w_std, y2_with_noise_std / x2_with_noise_std, m, x2_with_noise_mean, y2_with_noise_mean)
+def getWb1_fn(w_std, eta, m, x_mean, y_mean):
+    eta = eta.reshape(-1, 1)
+    w_original = np.zeros(m)
+    tmp = 0
+    for i in range(m):
+        w_original[i] = w_std[i] * eta[i]
+        tmp += eta[i] * w_std[i] * x_mean[i]
+    b_original = y_mean - tmp
+
+    return w_original.reshape(-1, 1), b_original
+
+
+# em 实验 1120的移除到pre
+def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=1e-6, correct=1e-2, convert_y='1'):
+    m = x_now.shape[1]
+    # 假设样本误差E的每一列符合N(0,1) 和 标签误差r符合N(0,1)
+    diag_x = np.eye(m)
+    diag_x_inv = np.eye(m)
+    flag = True
+    w_pre = None
+    # 记录 w 和 rmse
+    wb_list = []
+    rmse_list = []
+
+    while flag:
+        # 1.计算w
+        w1 = tls_fn(x_now.dot(diag_x), y_now)  # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
+        w_std = diag_x.dot(w1)  # m*m * m*1 = m*1 m=5
+        # print("w_std.shape", w_std.shape, 'type:', type(w_std))
+        # 还原 w 计算 rmse
+        w_original, b_original = getWb_fn(m, w_std, x_std, x_mean, y_std, y_mean)
+        # w_original, b_original = getWb_fn(w_std, y_std / x_std, m, x_mean, y_mean)
+        rmse = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
+        wb_list.append(np.vstack((w_original, b_original)))
+        rmse_list.append(rmse)
+
+        # 2.根据 w、diag_x 计算 E 和 r
+        w_t = np.transpose(w_std).reshape(1, -1)
+        diag_x_inv2 = np.dot(diag_x_inv, diag_x_inv)
+        denominator = np.dot(np.dot(w_t, diag_x_inv2), w_std) + 1  # wt: 1*m tmp_x:m*m  w:m*1
+        r_up = (np.dot(x_now, w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
+        r = r_up / denominator  # 1*1
+        E_up = -np.dot(np.dot(r_up, w_t), diag_x_inv2)  # n*1 * 1*m * m*m => n*m 111*5
+        E = E_up / denominator
+        # print("E.shape:", E.shape, 'type:', type(E), "  r.shape:", r.shape, 'type:', type(r))
+
+        # 3.更新sigma_x：根据样本误差的方差 和 标签误差的方差
+        E_std = calStd_fn(E)  # E_std = np.std(E, axis=0)
+        r_std = calStd_fn(r)
+        assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
+        assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
+        eta = (r_std + correct) / (E_std + correct)
+        eta_inv = (E_std + correct) / (r_std + correct)
+        for i in range(m):
+            diag_x[i][i] = eta[i]
+            diag_x_inv[i][i] = eta_inv[i]
+        print('eta:', eta)
+        # print("diag_x.shape:", diag_x.shape, "\n", diag_x, "\ndiag_x_inv.shape:", diag_x_inv.shape, "\n", diag_x_inv)
+
+        # 如果两次迭代的参数差距小于 w_epsilon 则结束循环
+        if w_pre is None:
+            w_pre = w_std
+        else:
+            gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
+            w_pre = w_std
+            flag = False if gap <= w_epsilon else True
+
+    plt.plot(rmse_list[1:])
+    plt.show()
+    # print("rmse==== ==== ==== ==== ====\n", rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
+
+    sorted_data = sorted(zip(rmse_list, wb_list))  # 要根据 rmse_list 排序，需要记录
+    # print("sorted_data==== ==== ==== ==== ====\n", sorted_data)
+    mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]
+    return mid_rmse, mid_wb
+
+
 """ 2. 保存运行结果 / 读取运行结果并绘制图像 ------------------------------------------------------------------------ """
 
 

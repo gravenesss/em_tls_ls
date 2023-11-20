@@ -45,7 +45,8 @@ def test_em(cur_seed, add_noise=True):
     m = 1 if x_new.ndim == 1 else x_new.shape[1]
 
     tls_w_std = tls_fn(x_new, y_new)  # 使用已经进行标准化的数据。tls内部未进行标准化  w未进行还原
-    tls_w, tls_b = getWb1_fn(tls_w_std, y_std_now/x_std_now, m, x_mean_now, y_mean_now)
+    tls_w, tls_b = getWb_fn(m, tls_w_std, x_std_now, x_mean_now, y_std_now, y_mean_now)
+    # getWb1_fn(tls_w_std, y_std_now/x_std_now, m, x_mean_now, y_mean_now)
     tls_err = getLossByWb_fn(x_test, y_test, tls_w, tls_b, err_type='rmse', convert_y=convert_y)
 
     # em 结果 em中就可以确定是否还原y 计算rmse
@@ -96,6 +97,7 @@ noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641
 if __name__ == '__main__':
     init()
     test_seed(3)  # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
+    # todo： 0的趋势和之前的不一样，找找问题； em最小化什么，把目标函数定义出来，看看结果。
     # test_pattern(10, 0)
 
     pass
