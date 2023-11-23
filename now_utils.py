@@ -63,8 +63,8 @@ def calStd_fn(matrix):
     std = np.sqrt(variance)
     return std
 
-
-def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=1e-6, correct=1e-2, convert_y='1'):
+# train_x, train_y,
+def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=1e-6, correct=1e-2, convert_y='1'):
     flag = True
     m = x_now.shape[1]
     # 假设样本误差E的每一列符合N(0,1) 和 标签误差r符合N(0,1)
@@ -72,6 +72,13 @@ def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, 
     diag_x_inv = np.eye(m)
     w_std = tls_fn(x_now, y_now)  # * diag_x
     w_pre = w_std
+
+    tls_train = np.sqrt(mean_squared_error(y_now, x_now.dot(w_std)))
+    tls_w, tls_b = getWb_fn(m, w_std, x_std, x_mean, y_std, y_mean)
+    # getWb1_fn(tls_w_std, y_std_now/x_std_now, m, x_mean_now, y_mean_now)
+    # tls_err = getLossByWb_fn(train_x, train_y, tls_w, tls_b, err_type='rmse', convert_y=convert_y)
+    # print('tls_train_err', tls_train, 'train:', tls_err)
+
     # 记录 w 和 rmse
     wb_list = []
     rmse_list = []
@@ -79,24 +86,24 @@ def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, 
     train_list = []
     target_list = []
 
+    # 这些值都是不知道的。。。获取这些值是不正确的。  退一步说，最多知道 x_test 分布情况，y_test是要预测的，是完全不知道的。
     x_test_mean = np.mean(x_test, axis=0)
-    y_test_mean = np.mean(y_test, axis=0)
+    # y_test_mean = np.mean(y_test, axis=0)
     x_test_std = np.std(x_test, axis=0)
-    y_test_std = np.std(y_test, axis=0)
-    x_test_new = (x_test - x_test_mean) / x_test_std
-    y_test_new = (y_test - y_test_mean) / y_test_std
+    # y_test_std = np.std(y_test, axis=0)
+    x_test_new = scale(x_test)  # (x_test - x_test_mean) / x_test_std
+    # y_test_new = scale(y_test)  # (y_test - y_test_mean) / y_test_std
 
     while flag:
-        # 1.1、E步： 计算E，r
+        # E步：
+        # 1.1: 计算E，r
         wT = np.transpose(w_std).reshape(1, -1)
         diag_x_inv2 = diag_x_inv.dot(diag_x_inv)
         denominator = wT.dot(diag_x_inv2).dot(w_std) + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r_up = (x_now.dot(w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
         r = r_up / denominator  # 111*1 n*1
-        E_up = -r_up.dot(wT).dot(diag_x_inv2)
-        E = E_up / denominator  # n*1 * 1*m * m*m => n*m 111*5
+        E = -r.dot(wT).dot(diag_x_inv2)  # n*1 * 1*m * m*m => n*m 111*5
         # print("E.shape:", E.shape, 'type:', type(E), "  r.shape:", r.shape, 'type:', type(r))
-
         # 1.2 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
@@ -105,11 +112,13 @@ def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, 
         for i in range(m):
             diag_x[i][i] = (r_std + correct) / (E_std[i] + correct)
             diag_x_inv[i][i] = (E_std[i] + correct) / (r_std + correct)
+            # diag_x[i][i] = (r_std + correct + 1) / (E_std[i] + correct + 1)
+            # diag_x_inv[i][i] = (E_std[i] + correct + 1) / (r_std + correct + 1)
         # print("diag_x.shape:", diag_x.shape, "\n", diag_x, "\ndiag_x_inv.shape:", diag_x_inv.shape, "\n", diag_x_inv)
 
         # 计算 target
         E_norm = np.linalg.norm(E.dot(diag_x), 'fro') ** 2  # F 范数的平方
-        r_norm = np.sum(r ** 2)  # L2范数的平方 sqrt 在 平方。
+        r_norm = np.sum(r ** 2)  # L2范数的平方 sqrt 再平方。
         t2 = np.zeros((r.shape[0], 1))
         lambda_r = 2 * r  # n*1
         lapse = (x_now + E).dot(w_std) - y_now - r
@@ -117,36 +126,33 @@ def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, 
         for i in range(r.shape[0]):
             t2[i] = lambda_r[i] * lapse[i]
         lapse_norm = np.linalg.norm(t2)
-        # print('lapse_norm:', np.linalg.norm(lapse))
         target = E_norm + r_norm + lapse_norm
+        # print('lapse_norm:', np.linalg.norm(lapse))
         # print('target:', target)
         target_list.append(target)
 
         # 2.计算 w_std
         w1 = tls_fn(x_now.dot(diag_x), y_now)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x.dot(w1)  # m*m * m*1 = m*1 m=5
-        # print("w_std.shape", w_std.shape, 'type:', type(w_std))
+        # print("w_std.shape", w_std.shape)
         # 还原 w 计算 rmse
         w_original, b_original = getWb_fn(m, w_std, x_std, x_mean, y_std, y_mean)
         # w_original, b_original = getWb_fn(w_std, y_std / x_std, m, x_mean, y_mean)  # eta:y_std/x_std (1,1)/(5,)
-        rmse_test = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
+        # rmse_test = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
         wb_list.append(np.vstack((w_original, b_original)))
-        rmse_list.append(rmse_test)
+        rmse_list.append(np.sqrt(mean_squared_error(y_test, x_test.dot(w_original) + b_original) ))
 
-        # 方式1：均值
-        # E_mean = np.mean(E, axis=0)
-        # r_mean = np.mean(r, axis=0)
-        # E_test = np.tile(E_mean, (x_test.shape[0], 1))  # Eg E_mean为（5，1），然后有13行，每列值为E_mean[i]
-        # print(x_test_new.shape, y_test_new.shape, E_mean.shape, r_mean.shape, E_test.shape)
-        # 方式2： 方差
+        # 使用方差 随机生成一个也不正常，test 中 E 和 r是不好确定的
         E_test = np.random.randn(x_test.shape[0], x_test.shape[1]) * E_std
         r_test = np.random.randn(y_test.shape[0], 1) * r_std
-
-        # y_test_new, (x_test_new + E_test).dot(w_std) - r_mean) #和2基本一致。 趋势基本一致 误差大
-        # y_test_new, x_test_new.dot(w_std))   # 趋势基本一致 误差大
-        # y_test, (x_test + E_test).dot(w_original) + b_original - r_mean)  # 和getLossByWb_fn计算的基本一致。数值一致
-        # y_test, x_test.dot(w_original) + b_original)  # 完全一样
-        rmse_test = np.sqrt(mean_squared_error(y_test, x_test.dot(w_original) + b_original))
+        # ×1: y_test_new, (x_test_new + E_test).dot(w_std) - r_mean) #和2基本一致。 趋势基本一致 误差大
+        # ×2: y_test_new, x_test_new.dot(w_std))   # 趋势基本一致 误差大
+        # ×-E r不知道3：y_test, (x_test + E_test).dot(w_original) + b_original - r_mean)  # 和getLossByWb_fn计算的基本一致。数值一致
+        # 4: y_test, x_test.dot(w_original) + b_original)  # 完全一样
+        # 5: y_test, x_test.dot(w_std)) 基本都是下降的，但是 rmse太大
+        # 6: 如果就使用给定的x_test的信息均值和标准差的数据计算 rmse， tls也需要使用相同的方式。 y_test, x_test_new.dot(w_std) * y_std + y_mean)
+        # w_test, b_test = getWb_fn(x_test.shape[1], w_std, x_test_std, x_test_mean, y_test_std, y_test_mean)
+        rmse_test = np.sqrt(mean_squared_error(y_test, x_test.dot(w_std)))  # 效果一般
         test_list.append(rmse_test)
 
         # y_now, (x_now + E).dot(w_std) - r)
@@ -162,29 +168,31 @@ def em_fn(train_x, train_y, x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, 
         w_pre = w_std
         flag = False if gap <= w_epsilon else True
 
-    plt.figure(figsize=(12, 3))  # 设置整个图像的大小
-    plt.subplot(1, 4, 1)
-    plt.plot(train_list[1:], label='train_std_rmse')
-    plt.legend()
+    if False:
+        plt.figure(figsize=(12, 3))  # 设置整个图像的大小
+        plt.subplot(1, 4, 1)
+        plt.plot(train_list[1:], label='train_std_rmse')
+        plt.legend()
 
-    plt.subplot(1, 4, 2)
-    plt.plot(rmse_list[1:], label='rmse')
-    plt.legend()
+        plt.subplot(1, 4, 2)
+        plt.plot(rmse_list[1:], label='rmse')
+        plt.legend()
 
-    plt.subplot(1, 4, 3)
-    plt.plot(test_list[1:], label='test_std_rmse')
-    plt.legend()
+        plt.subplot(1, 4, 3)
+        plt.plot(test_list[1:], label='test_std_rmse')
+        plt.legend()
 
-    plt.subplot(1, 4, 4)
-    plt.plot(target_list[1:], label='target')
-    plt.legend()
-    plt.show()
+        plt.subplot(1, 4, 4)
+        plt.plot(target_list[1:], label='target')
+        plt.legend()
+        plt.show()
     # print("rmse==== ==== ==== ==== ====\n", rmse_list, '\nwb==== ==== ==== ==== ====\n', wb_list)
 
     sorted_data = sorted(zip(rmse_list, wb_list))  # 要根据 rmse_list 排序，需要记录
     # print("sorted_data==== ==== ==== ==== ====\n", sorted_data)
     mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]
-    return mid_rmse, mid_wb
+    # return mid_rmse, mid_wb
+    return rmse_list[-1], wb_list[-1]
 
 
 # 模型训练、进行了还原
@@ -238,7 +246,7 @@ def modelPredict_fn(x, y, x_test, y_test, model_name, convert_y='1', poly=2):
 
 # 标准化后的训练集；测试集；标准化前的均值，标准差。
 # x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = dataProcess_fn(0.1, True)
-def dataProcess_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_seed=42):
+def dataProcess1_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_seed=42):
     # 1）划分数据集
     x, x_test, y, y_test = train_test_split(data_x, data_y, test_size=test_ratio, random_state=now_seed)
     if add_noise:
@@ -265,5 +273,34 @@ def dataProcess_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_see
     y_std_now = np.std(y_train_now, axis=0)
     x_new = scale(x_train_now)
     y_new = scale(y_train_now)
+
+    return x, y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now
+
+def dataProcess_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_seed=42):
+    x, x_test, y, y_test = train_test_split(data_x, data_y, test_size=test_ratio, random_state=now_seed)
+    # 1）进行标准化
+    x_mean_now = np.mean(x, axis=0)
+    y_mean_now = np.mean(y, axis=0)
+    x_std_now = np.std(x, axis=0)  # em中使用之后的 std
+    y_std_now = np.std(y, axis=0)
+    x_now = scale(x)
+    y_now = scale(y)
+
+    if add_noise:
+        print("添加随机噪声。")
+        noise_ratio = 0.2
+        x_ratio = noise_ratio * noise_pattern[:-1]  # b.噪声比例 和 c.每一列权重
+        y_ratio = noise_ratio * noise_pattern[-1]
+        # x_std_pre = np.std(x, axis=0)  # d. x y 的标准差  现在是全1
+        # y_std_pre = np.std(y, axis=0)
+        # new_std_x = np.multiply(x_std_pre, x_ratio)
+        # new_std_y = np.multiply(y_std_pre, y_ratio)
+        np.random.seed(now_seed)  # a. 随机种子
+        x_new = x_now + np.random.normal(0, x_ratio, x.shape)
+        y_new = y_now + np.random.normal(0, y_ratio, y.shape)
+    else:
+        print("不加噪声。")
+        x_new = x_now
+        y_new = y_now
 
     return x, y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now

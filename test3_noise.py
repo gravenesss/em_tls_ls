@@ -59,9 +59,9 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     mid_ls_rmse, mid_ls_wb = [], []
     mid_tls_rmse, mid_tls_wb = [], []
     mid_em_rmse, mid_em_wb = [], []
-    # mid_linear_rmse = []
-    # mid_elastic_rmse = []
-    # mid_lasso_rmse = []
+    mid_linear_rmse = []
+    mid_elastic_rmse = []
+    mid_lasso_rmse = []
 
     start = datetime.now().strftime("%H:%M:%S")
     # 1）噪声比例以此增大      # for now_id, noise_ratio in enumerate(noise_sequence):
@@ -70,9 +70,9 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         tmp_ls_rmse, tmp_ls_wb = [], []
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
-        # tmp_linear_rmse = []
-        # tmp_elastic_rmse = []
-        # tmp_lasso_rmse = []
+        tmp_linear_rmse = []
+        tmp_elastic_rmse = []
+        tmp_lasso_rmse = []
         copy_x0 = copy.deepcopy(data_x)
         copy_y0 = copy.deepcopy(data_y)
 
@@ -150,12 +150,12 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                 # em
                 tmp_em_rmse.append(em_err)
                 tmp_em_wb.append(em_wb2.flatten().tolist())
-                # # linear 添加噪声后的数据: convert_y 默认为'1'
-                # tmp_linear_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'linear'))
-                # # elasticNet
-                # tmp_elastic_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'en'))
-                # # Lasso
-                # tmp_lasso_rmse.append(modelPredict_fn(x_now, y_now, x_test, y_test, 'lasso'))
+                # linear 添加噪声后的数据: convert_y 默认为'1'
+                tmp_linear_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'linear'))
+                # elasticNet
+                tmp_elastic_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'en'))
+                # Lasso
+                tmp_lasso_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'lasso'))
 
         # 记录 随机划分数据集 × 随机噪声 组 的中位数
         # ls
@@ -176,15 +176,15 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         mid_err, mid_wb = sorted_data[mid_index]
         mid_em_rmse.append(mid_err)
         mid_em_wb.append(mid_wb)
-        # # linear
-        # tmp_linear_rmse.sort(reverse=False)
-        # mid_linear_rmse.append(tmp_linear_rmse[len(tmp_linear_rmse) // 2])
-        # # elasticNet
-        # tmp_elastic_rmse.sort(reverse=False)
-        # mid_elastic_rmse.append(tmp_elastic_rmse[len(tmp_elastic_rmse) // 2])
-        # # Lasso
-        # tmp_lasso_rmse.sort(reverse=False)
-        # mid_lasso_rmse.append(tmp_lasso_rmse[len(tmp_lasso_rmse) // 2])
+        # linear
+        tmp_linear_rmse.sort(reverse=False)
+        mid_linear_rmse.append(tmp_linear_rmse[len(tmp_linear_rmse) // 2])
+        # elasticNet
+        tmp_elastic_rmse.sort(reverse=False)
+        mid_elastic_rmse.append(tmp_elastic_rmse[len(tmp_elastic_rmse) // 2])
+        # Lasso
+        tmp_lasso_rmse.sort(reverse=False)
+        mid_lasso_rmse.append(tmp_lasso_rmse[len(tmp_lasso_rmse) // 2])
 
     end = datetime.now().strftime("%H:%M:%S")
     print(start + " -- " + end)
@@ -194,11 +194,10 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     plt.plot(noise_sequence, mid_ls_rmse)
     plt.plot(noise_sequence, mid_tls_rmse)
     plt.plot(noise_sequence, mid_em_rmse)
-    plt.legend(['myLs', 'myTLS'])
+    plt.legend(['myLs', 'myTLS', 'em'])
     plt.show()
 
-    if False:
-        print("em     : ", mid_em_rmse)
+    if True:
         print("linear : ", mid_linear_rmse)
         print("elastic: ", mid_elastic_rmse)
         print("lasso  : ", mid_lasso_rmse)
@@ -245,7 +244,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
 
 if __name__ == '__main__':
     init1()
-    random_seeds = list(range(0, 1))
+    random_seeds = list(range(0, 10))
     only_test = False
     if only_test:
         print("onlyTest========================================")
