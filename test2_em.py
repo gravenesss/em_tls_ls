@@ -39,7 +39,6 @@ def init1():
 
 # 测试 em 算法
 def test_em(cur_seed, add_noise=True):
-    print("EM Test ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ")
     train_x, train_y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = \
         dataProcess_fn(data_x, data_y, noise_pattern, 0.1, add_noise, cur_seed)
     m = 1 if x_new.ndim == 1 else x_new.shape[1]
@@ -55,7 +54,7 @@ def test_em(cur_seed, add_noise=True):
     # em_err = getLossByWb_fn(x_test, y_test, em_wb1[0:5], em_wb1[5], err_type='rmse', convert_y=convert_y)
 
     print("tls_err: ", tls_err)
-    print("em_err: ", em_err)
+    print("em_err:  ", em_err)
     # print("tls_wb: ", np.vstack((tls_w, tls_b)))
     # print("em_wb: ", em_wb1)
 
@@ -80,6 +79,7 @@ def test_pattern(seeds, fixed_seed):
     for i in range(seeds):
         np.random.seed(i)
         this_noise_pattern = np.random.uniform(0.2, 2, 6)
+        print("EM Test ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ")
         print("pattern_seed:", i, "pattern:", this_noise_pattern)
         test_em(fixed_seed)
 
@@ -94,9 +94,11 @@ noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641
 # noise_pattern = np.array([1.19143622, 1.47466608, 0.72362853, 1.11948969, 1.80730452, 1.81332756])
 # seed = 42
 
+# correct = 0.6 → 74/100  0.5 71.
+
 if __name__ == '__main__':
     init()
-    test_seed(100)  # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
+    test_seed(10)  # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
     # todo： 0的趋势和之前的不一样，找找问题； em最小化什么，把目标函数定义出来，看看结果。
     # test_pattern(10, 0)
 

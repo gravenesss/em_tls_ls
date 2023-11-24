@@ -78,14 +78,6 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
     # getWb1_fn(tls_w_std, y_std_now/x_std_now, m, x_mean_now, y_mean_now)
     # tls_err = getLossByWb_fn(train_x, train_y, tls_w, tls_b, err_type='rmse', convert_y=convert_y)
     # print('tls_train_err', tls_train, 'train:', tls_err)
-
-    # 记录 w 和 rmse
-    wb_list = []
-    rmse_list = []
-    test_list = []
-    train_list = []
-    target_list = []
-
     # 这些值都是不知道的。。。获取这些值是不正确的。  退一步说，最多知道 x_test 分布情况，y_test是要预测的，是完全不知道的。
     x_test_mean = np.mean(x_test, axis=0)
     # y_test_mean = np.mean(y_test, axis=0)
@@ -94,19 +86,27 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
     x_test_new = scale(x_test)  # (x_test - x_test_mean) / x_test_std
     # y_test_new = scale(y_test)  # (y_test - y_test_mean) / y_test_std
 
+    # 记录 w 和 rmse
+    wb_list = []
+    rmse_list = []
+    test_list = []
+    train_list = []
+    target_list = []
+
     while flag:
         # E步：
-        # 1.1: 计算E，r
-        wT = np.transpose(w_std).reshape(1, -1)
-        diag_x_inv2 = diag_x_inv.dot(diag_x_inv)
+        # 1.1: 计算 r E
+        wT = np.transpose(w_std).reshape(1, -1)  # 1*m
+        diag_x_inv2 = diag_x_inv.dot(diag_x_inv)  # m*m
         denominator = wT.dot(diag_x_inv2).dot(w_std) + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
-        r_up = (x_now.dot(w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
+        r_up = (x_now.dot(w_std) - y_now).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111 todo: x y是未加噪声的？
         r = r_up / denominator  # 111*1 n*1
         E = -r.dot(wT).dot(diag_x_inv2)  # n*1 * 1*m * m*m => n*m 111*5
         # print("E.shape:", E.shape, 'type:', type(E), "  r.shape:", r.shape, 'type:', type(r))
-        # 1.2 更新 diag_x
+        # 1.2: 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
+        print("E_std:", E_std, "r_std:", r_std)
         assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
         assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
         for i in range(m):
@@ -114,7 +114,7 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
             diag_x_inv[i][i] = (E_std[i] + correct) / (r_std + correct)
             # diag_x[i][i] = (r_std + correct + 1) / (E_std[i] + correct + 1)
             # diag_x_inv[i][i] = (E_std[i] + correct + 1) / (r_std + correct + 1)
-        # print("diag_x.shape:", diag_x.shape, "\n", diag_x, "\ndiag_x_inv.shape:", diag_x_inv.shape, "\n", diag_x_inv)
+        print("diag_x.shape:", diag_x.shape, "\n", diag_x, "\ndiag_x_inv.shape:", diag_x_inv.shape, "\n", diag_x_inv)
 
         # 计算 target
         E_norm = np.linalg.norm(E.dot(diag_x), 'fro') ** 2  # F 范数的平方
@@ -131,27 +131,17 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
         # print('target:', target)
         target_list.append(target)
 
-        # 2.计算 w_std
+        # M步: 计算 w_std
         w1 = tls_fn(x_now.dot(diag_x), y_now)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x.dot(w1)  # m*m * m*1 = m*1 m=5
         # print("w_std.shape", w_std.shape)
         # 还原 w 计算 rmse
         w_original, b_original = getWb_fn(m, w_std, x_std, x_mean, y_std, y_mean)
-        # w_original, b_original = getWb_fn(w_std, y_std / x_std, m, x_mean, y_mean)  # eta:y_std/x_std (1,1)/(5,)
         # rmse_test = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
         wb_list.append(np.vstack((w_original, b_original)))
         rmse_list.append(np.sqrt(mean_squared_error(y_test, x_test.dot(w_original) + b_original) ))
 
-        # 使用方差 随机生成一个也不正常，test 中 E 和 r是不好确定的
-        E_test = np.random.randn(x_test.shape[0], x_test.shape[1]) * E_std
-        r_test = np.random.randn(y_test.shape[0], 1) * r_std
-        # ×1: y_test_new, (x_test_new + E_test).dot(w_std) - r_mean) #和2基本一致。 趋势基本一致 误差大
-        # ×2: y_test_new, x_test_new.dot(w_std))   # 趋势基本一致 误差大
-        # ×-E r不知道3：y_test, (x_test + E_test).dot(w_original) + b_original - r_mean)  # 和getLossByWb_fn计算的基本一致。数值一致
-        # 4: y_test, x_test.dot(w_original) + b_original)  # 完全一样
-        # 5: y_test, x_test.dot(w_std)) 基本都是下降的，但是 rmse太大
-        # 6: 如果就使用给定的x_test的信息均值和标准差的数据计算 rmse， tls也需要使用相同的方式。 y_test, x_test_new.dot(w_std) * y_std + y_mean)
-        # w_test, b_test = getWb_fn(x_test.shape[1], w_std, x_test_std, x_test_mean, y_test_std, y_test_mean)
+        # rmse_test
         rmse_test = np.sqrt(mean_squared_error(y_test, x_test.dot(w_std)))  # 效果一般
         test_list.append(rmse_test)
 
@@ -160,7 +150,6 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
         # train_y, (train_x+E).dot(w_original) + b_original - r)
         # train_y, train_x.dot(w_original) + b_original)
         rmse_train = np.sqrt(mean_squared_error(y_now, (x_now + E).dot(w_std) - r))
-        # getLossByWb_fn(x_now, y_now, w_original, b_original, err_type='rmse', convert_y=convert_y)
         train_list.append(rmse_train)
 
         # 判断是否结束循环
@@ -168,7 +157,7 @@ def em_fn(x_now, y_now, x_std, y_std, x_mean, y_mean, x_test, y_test, w_epsilon=
         w_pre = w_std
         flag = False if gap <= w_epsilon else True
 
-    if False:
+    if True:
         plt.figure(figsize=(12, 3))  # 设置整个图像的大小
         plt.subplot(1, 4, 1)
         plt.plot(train_list[1:], label='train_std_rmse')
@@ -276,6 +265,8 @@ def dataProcess1_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_se
 
     return x, y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now
 
+
+# 先标准化，再加噪声
 def dataProcess_fn(data_x, data_y, noise_pattern, test_ratio, add_noise, now_seed=42):
     x, x_test, y, y_test = train_test_split(data_x, data_y, test_size=test_ratio, random_state=now_seed)
     # 1）进行标准化
