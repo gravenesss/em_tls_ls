@@ -1,6 +1,7 @@
 import json
 from now_utils import *
 from util.feature_select import getNewXy_fn, getXy_fn
+from util.loss import getLossByWb_fn
 
 # 读取变量值：超参数、输出位置
 with open("config.json") as f:
@@ -38,28 +39,55 @@ def init1():
 
 
 # 测试tls: eta为自己设定的值。
-def test_tls(eta, noise_pattern_, add_noise):
-    train_x, train_y, x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = \
-        dataProcess1_fn(data_x, data_y, noise_pattern, 0.1, add_noise)
+def test_tls(test_ratio, eta):
+    train_x, test_x, train_y, test_y = train_test_split(data_x, data_y, test_size=test_ratio, random_state=42)
+    train_x_std = np.std(train_x, axis=0)
+    train_x_mean = np.mean(train_x, axis=0)
+    train_y_std = np.std(train_y, axis=0)
+    train_y_mean = np.mean(train_y, axis=0)
+    train_x_new = (train_x - train_x_mean) / train_x_std
+    train_y_new = (train_y - train_y_mean) / train_y_std
 
-    # x_new, y_new, x_test, y_test, x_mean_now, y_mean_now, x_std_now, y_std_now = \
-    #     dataProcess_fn(data_x, data_y, noise_pattern_, 0.1, add_noise)
-    m = 1 if x_new.ndim == 1 else x_new.shape[1]
-
+    m = train_x_new.shape[1]
     diag_x = np.eye(m)
     for i in range(m):
         diag_x[i][i] = eta[i]
 
-    # 计算 w
-    w2 = tls_fn(np.dot(x_new, diag_x), y_new)  # x'=x*sigma_x  w'=sigma_x^(-1)*w  w=sigma_x*w'
-    w_std2 = np.dot(diag_x, w2)  # m*m * m*1
-    # 还原 w 计算 error  getWb_fn(m, w_std, x_std, x_mean, y_std, y_mean)
-    tls_w2, tls_b2 = getWb_fn(m, w_std2, x_std_now, x_mean_now, y_std_now, y_mean_now)
-    # getWb_fn(w_std2, y_std_now / x_std_now, m, x_mean_now, y_mean_now)
-    tls_err2 = getLossByWb_fn(x_test, y_test, tls_w2, tls_b2, err_type='rmse')
+    # tls_fn
+    # print("tls_fn========================")
+    w1 = tls_fn(train_x_new.dot(diag_x), train_y_new)
+    w_std = diag_x.dot(w1)
+    tls_w, tls_b = getWb_fn(m, w_std, train_x_std, train_x_mean, train_y_std, train_y_mean)
+    # print("w1: ", w1, '\ntls_w', tls_w, '\ntls_b', tls_b)
 
-    # 4）输出
-    print("rmse: ", tls_err2)
+    train_rmse0 = np.sqrt(mean_squared_error(train_y_new, train_x_new.dot(w_std)))  # 标准化后
+    train_rmse1 = np.sqrt(mean_squared_error(train_y, train_x.dot(tls_w) + tls_b))  # wb还原
+    train_rmse2 = np.sqrt(mean_squared_error(train_y, train_x_new.dot(w_std) * train_y_std + train_y_mean))  # ms还原
+    print("train——rmse=====================")
+    print("标准化：  ", train_rmse0)
+    print("wb还原:  ", train_rmse1)
+    print("ms还原:  ", train_rmse2)
+
+    test_rmse1_1 = getLossByWb_fn(test_x, test_y, tls_w, tls_b, err_type='rmse')
+    test_rmse1_2 = np.sqrt(mean_squared_error(test_y, test_x.dot(tls_w) + tls_b))  # wb还原
+    test_rmse2 = np.sqrt(mean_squared_error(test_y, test_x.dot(w_std) * train_y_std + train_y_mean))  # ms还原
+    print("test——rmse======================")
+    print("wb还原:  ", test_rmse1_1)
+    print("wb还原:  ", test_rmse1_2)
+    print("ms还原:  ", test_rmse2)
+
+    # tls2. ok 两种方法求的w1 一致。
+    # print("tls2========================")
+    # w1 = tls2(train_x_new.dot(diag_x), train_y_new)
+    # print("w1: ", w1)
+    # w_std = diag_x.dot(w1)
+    # tls_w, tls_b = getWb_fn(m, w_std, train_x_std, train_x_mean, train_y_std, train_y_mean)
+    # rmse1 = np.sqrt(mean_squared_error(train_y_new, train_x_new.dot(tls_w) + tls_b))
+    # rmse2 = np.sqrt(mean_squared_error(train_y_new, train_x_new.dot(w_std) * train_y_std + train_y_mean))
+    # print("original_wb: ", rmse1,
+    #       "\nmean_std:    ", rmse2)
+
+    pass
 
 
 if __name__ == '__main__':
@@ -67,35 +95,49 @@ if __name__ == '__main__':
     noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
     # noise_pattern = np.array([0.95063961, 1.49658409, 0.20020587, 0.74419863, 0.4641606, 0.36620947])
     # noise_pattern = np.array([1.19143622, 1.47466608, 0.72362853, 1.11948969, 1.80730452, 1.81332756])
+    # print("noise_pattern:", noise_pattern)
 
     # eta_now = np.array([1.0, 1.0, 1.0, 1.0, 1.0])
-    eta_now = np.array([1.21892236e-07, 4.82282049e+00, 4.82282047e+00, 4.82282049e+00, 4.82282050e+00])
-
-    print("noise_pattern:", noise_pattern)
+    # eta_now = np.array([1.21892236e-07, 4.82282049e+00, 4.82282047e+00, 4.82282049e+00, 4.82282050e+00])
+    # 1e-8
+    eta_now = np.array([2.43739139e-08, 1.00021127e+00, 1.00021126e+00, 1.00021127e+00, 1.00021127e+00])
+    # 0.5的会出现traget增大的情况，改变了原来的收敛性
+    # eta_now = np.array([0.99787797, 1.41888366, 1.35995768, 1.41529427, 1.41514013])
     print("eta:", eta_now)
-    test_tls(eta_now, noise_pattern, True)
+    test_tls(0.1, eta_now)
 
     pass
 
-"""
+"""  测试tls: eta为自己设定的值。
 使用的特征为： ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']
 y取以10为底的对数
-
-noise_pattern: [0.95063961 1.49658409 0.20020587 0.74419863 0.4641606  0.36620947]
 eta: [1. 1. 1. 1. 1.]
-rmse:  0.20829796391253924
+train——rmse=====================
+标准化：   0.3908244869626299
+wb还原:   0.06653896886025107
+ms还原:   0.06653896886025097
+test——rmse======================
+wb还原:   0.2451621469008967
+wb还原:   0.2451621469008967
+ms还原:   0.6291319334321861
 
-noise_pattern: [1. 1. 1. 1. 1. 1.]
-eta: [1. 1. 1. 1. 1.]
-rmse:  0.212130202443861
+eta: [1.21892236e-07 4.82282049e+00 4.82282047e+00 4.82282049e+00 4.82282050e+00]  # 1e-8
+train——rmse=====================
+标准化：   0.41520906032733707
+wb还原:   0.0706905111046853
+ms还原:   0.0706905111046854
+test——rmse======================
+wb还原:   0.23932813581399606
+wb还原:   0.23932813581399606
+ms还原:   0.6195988188115839
 
-noise_pattern: [1. 1. 1. 1. 1. 1.]
-eta: [1.21892236e-07 4.82282049e+00 4.82282047e+00 4.82282049e+00 4.82282050e+00]
-添加随机噪声。
-rmse:  0.20952069539649945
-
-noise_pattern: [0.95063961 1.49658409 0.20020587 0.74419863 0.4641606  0.36620947]
-eta: [1.21892236e-07 4.82282049e+00 4.82282047e+00 4.82282049e+00 4.82282050e+00]
-rmse:  0.20479057509073972
+eta: [0.99787797 1.41888366 1.35995768 1.41529427 1.41514013]  # 0.5 ×
+train——rmse=====================
+标准化：   0.3871280921281049
+wb还原:   0.06590964723636529
+ms还原:   0.06590964723636521
+test——rmse======================
+wb还原:   0.2333831449362848
+wb还原:   0.2333831449362848
+ms还原:   0.6403400953218694
 """
-

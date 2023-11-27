@@ -88,13 +88,13 @@ def calFeaRulCorrelation_fn(data_x, cycle_life, fea_name, save_dir=IMAGE_DIR, fi
 
 
 # 绘制特征的热力图
-def plotHeatMap_fn(data_x, cycle_life, save_dir=IMAGE_DIR, filename='correlation_heatmap.png'):
+def plotHeatMap_fn(data_x, cycle_life, fea_names, save_dir=IMAGE_DIR, filename='correlation_heatmap.png'):
     plt.rcParams['axes.unicode_minus'] = False
     # 获取特征和回归值之间的相关系数矩阵
     corr_matrix = np.corrcoef(data_x.T, cycle_life.T)
     # 绘制热力图
     fig, ax = plt.subplots(figsize=(10, 8))
-    x_ticks = [i + 1 for i in range(data_x.shape[1] + 1)]  # np.shape(data_x)[1]
+    x_ticks = fea_names + ['cycle_life']  # [i + 1 for i in range(data_x.shape[1] + 1)]  # np.shape(data_x)[1]
     # corr_matrix:相关系数矩阵，即要绘制热力图的数据；annot:是否在热力图上显示数值；fmt:用于指定要显示的数值的格式；
     # cmap: 指定热力图的颜色映射，coolwarm表示蓝色到红色的渐变色映射；ax: 绘图的坐标轴对象，默认为None；
     sns.heatmap(corr_matrix, annot=True, fmt=".3f", cmap="coolwarm", ax=ax, xticklabels=x_ticks, yticklabels=x_ticks)
@@ -107,7 +107,7 @@ def plotHeatMap_fn(data_x, cycle_life, save_dir=IMAGE_DIR, filename='correlation
 
 if __name__ == '__main__':
     # 1 表示使用指定特征和原始的y的相关系数和特征图。 2表示选取指定特征 与 log10(y)的关系
-    test = 3
+    test = 4
     if test == 1:
         select_feature = range(8, 17)
         print(select_feature)
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         dataX, dataY = getXy_fn(DATA_DIR, select_feature)
 
         calFeaRulCorrelation_fn(dataX, dataY, feature_names, filename='all_9features_y.png')
-        plotHeatMap_fn(dataX, dataY, filename='all_9features_y_heatmap.png')
+        plotHeatMap_fn(dataX, dataY, feature_names, filename='all_9features_y_heatmap.png')
     elif test == 2:
         select_feature = [f'F{i}' for i in range(1, 10)]   # ['F2', 'F3', 'F5', 'F6', 'F9']
         print(select_feature)
@@ -124,9 +124,9 @@ if __name__ == '__main__':
         dataY = np.log10(dataY)
 
         calFeaRulCorrelation_fn(dataX, dataY, feature_names, filename='all_F_features_log10_y.png')
-        plotHeatMap_fn(dataX, dataY, filename='all_F_features_log10_y_heatmap.png')
+        plotHeatMap_fn(dataX, dataY, feature_names, filename='all_F_features_log10_y_heatmap.png')
 
-    else:
+    elif test == 3:
         # ['cell_key', 'D1/F1', 'V1/D2/F2', 'D3', 'D4', 'F3', 'F4', 'D5/F5', 'D6', 'F6', 'F7', 'F8', 'F9', 'cycle_life']
         select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']  # 'V1/D2/F2'
         print(select_feature)
@@ -134,6 +134,16 @@ if __name__ == '__main__':
         dataY = np.log10(dataY)
 
         calFeaRulCorrelation_fn(dataX, dataY, select_feature, filename='F_five_features_log10_y.png')
-        plotHeatMap_fn(dataX, dataY, filename='F_five_features_log10_y_heatmap.png')
+        plotHeatMap_fn(dataX, dataY, select_feature, filename='F_five_features_log10_y_heatmap.png')
+
+    elif test == 4:
+        # ['cell_key', , 'cycle_life']
+        select_feature = ['D1/F1', 'V1/D2/F2', 'D3', 'D4', 'F3', 'F4', 'D5/F5', 'D6', 'F6', 'F7', 'F8', 'F9', 'Area_100_10']
+        print(select_feature)
+        dataX, dataY = getNewXy_fn('../data/rebuild_features5.csv', select_feature)
+        dataY = np.log10(dataY)
+
+        calFeaRulCorrelation_fn(dataX, dataY, select_feature, filename='F_12_features_log10_y.png')
+        plotHeatMap_fn(dataX, dataY, select_feature, filename='F_12_features_log10_y_heatmap.png')
 
     pass
