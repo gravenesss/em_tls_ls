@@ -23,17 +23,23 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     print('noise_sequence: ', noise_sequence, len(noise_sequence))
 
     # 0. 记录 tls 和 em 的结果
+    mid_ls_rmse, mid_ls_wb = [], []
     mid_tls_rmse, mid_tls_wb = [], []
     mid_em_rmse, mid_em_wb = [], []
     mid_linear_rmse = []
+    mid_elastic_rmse = []
+    mid_lasso_rmse = []
 
     start = datetime.now().strftime("%H:%M:%S")
     # 1）噪声比例以此增大      # for now_id, noise_ratio in enumerate(noise_sequence):
     for now_id in trange(seq_len, desc='Progress', unit='loop'):
         noise_ratio = noise_sequence[now_id]
+        tmp_ls_rmse, tmp_ls_wb = [], []
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
         tmp_linear_rmse = []
+        tmp_elastic_rmse = []
+        tmp_lasso_rmse = []
         copy_x0 = copy.deepcopy(data_x)
         copy_y0 = copy.deepcopy(data_y)
 
@@ -101,13 +107,29 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                 em_err, em_wb2 = em_fn(x2_with_noise, y2_with_noise, copy_test_x2, copy_test_y2, w_epsilon, correct)
 
                 # 4） 记录每次实验的 rmse 和 wb
+                # ls
+                tmp_ls_rmse.append(ls_err)
+                tmp_ls_wb.append(np.vstack((ls_w0, ls_b0)).flatten().tolist())
                 # tls
                 tmp_tls_rmse.append(tls_err)
                 tmp_tls_wb.append(np.vstack((tls_w1, tls_b1)).flatten().tolist())
                 # em
                 tmp_em_rmse.append(em_err)
                 tmp_em_wb.append(em_wb2.flatten().tolist())
+                # linear 添加噪声后的数据: convert_y 默认为'1'
+                tmp_linear_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'linear'))
+                # elasticNet
+                tmp_elastic_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'en'))
+                # Lasso
+                tmp_lasso_rmse.append(modelPredict_fn(x2_after_std, y2_after_std, copy_test_x2, copy_test_y2, 'lasso'))
+
         # 记录 随机划分数据集 × 随机噪声 组 的中位数
+        # ls
+        sorted_data = sorted(zip(tmp_ls_rmse, tmp_ls_wb))  # 对应的数据
+        mid_index = len(sorted_data) // 2
+        mid_err, mid_wb = sorted_data[mid_index]
+        mid_ls_rmse.append(mid_err)  # mid_...
+        mid_ls_wb.append(mid_wb)  # mid_...
         # tls
         sorted_data = sorted(zip(tmp_tls_rmse, tmp_tls_wb))
         mid_index = len(sorted_data) // 2
@@ -123,14 +145,32 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         # linear
         tmp_linear_rmse.sort(reverse=False)
         mid_linear_rmse.append(tmp_linear_rmse[len(tmp_linear_rmse) // 2])
+        # elasticNet
+        tmp_elastic_rmse.sort(reverse=False)
+        mid_elastic_rmse.append(tmp_elastic_rmse[len(tmp_elastic_rmse) // 2])
+        # Lasso
+        tmp_lasso_rmse.sort(reverse=False)
+        mid_lasso_rmse.append(tmp_lasso_rmse[len(tmp_lasso_rmse) // 2])
 
     end = datetime.now().strftime("%H:%M:%S")
     print(start + " -- " + end)
+    print("ls     : ", mid_ls_rmse)
+    print("tls    : ", mid_tls_rmse)
+    print('em     : ', mid_em_rmse)
+    # plt.plot(noise_sequence, mid_ls_rmse)
+    # plt.plot(noise_sequence, mid_tls_rmse)
+    # plt.plot(noise_sequence, mid_em_rmse)
+    # plt.legend(['myLs', 'myTLS', 'em'])
+    # plt.show()
 
     if True:
-        print("tls    : ", mid_tls_rmse)
-        print('em     : ', mid_em_rmse)
         print("linear : ", mid_linear_rmse)
+        print("elastic: ", mid_elastic_rmse)
+        print("lasso  : ", mid_lasso_rmse)
+
+        # print("中位数-tls-wb ：", mid_tls_wb)
+        # print("中位数-em-wb  ：", mid_em_wb)
+        mid_ls_wb = np.array(mid_ls_wb)
         mid_tls_wb = np.array(mid_tls_wb)
         mid_em_wb = np.array(mid_em_wb)
         # print("中位数-tls-wb ：", mid_tls_wb)
@@ -139,8 +179,10 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
         # 1. 绘制 rmse 图像
         title = "Training VS RMSE\n" + '随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(noise_loop)
         x_label = 'Increase of Noise Ratio'
-        plotXYs_fn(noise_sequence, [mid_tls_rmse, mid_em_rmse, mid_linear_rmse], x_label, 'RMSE',
-                   ['tls', 'em', 'linear'], ['s', 'p', 'o'], NOW_DIR, 'noise_all.png', title)
+        plotXYs_fn(noise_sequence,
+                   [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse],
+                   x_label, 'RMSE', ['tls', 'em', 'ls', 'linear', 'elasticNet', 'lasso'], ['s', 'p', 'o', 'v', '.', '*'],
+                   NOW_DIR, 'noise_all.png', title)
         plotXYs_fn(noise_sequence, [mid_tls_rmse, mid_em_rmse], x_label, 'RMSE',
                    ['tls', 'em'], ['s', 'p'], NOW_DIR, 'noise_part.png', title)
 
@@ -158,16 +200,19 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
                     '随机划分数据集次数：' + str(split_num),
                     '随机生成噪声次数 ：' + str(noise_loop)]
         saveCsvRow_fn(noise_sequence,
-                      [mid_tls_rmse, mid_em_rmse, mid_linear_rmse,  mid_tls_wb.tolist(), mid_em_wb.tolist()],
-                      'train_ratio', ['tls_rmse', 'em_rmse', 'linear_rmse', 'tls_wb', 'em_wb'],
+                      [mid_tls_rmse, mid_em_rmse, mid_ls_rmse, mid_linear_rmse, mid_elastic_rmse, mid_lasso_rmse,
+                       mid_tls_wb.tolist(), mid_em_wb.tolist(), mid_ls_wb.tolist()],
+                      'train_ratio',
+                      ['tls_rmse', 'em_rmse', 'ls-rmse', 'linear_rmse', 'en_rmse', 'lasso_rmse', 'tls_wb', 'em_wb',
+                       'ls_wb'],
                       comments, NOW_DIR, "noise.csv")
 
 
 if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
     # select_feature = [9, 10, 12, 13, 16]  # 2 3 5 6 9
-    data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'F3', 'F6', 'F9', 'Area_100_10']  # ,   'D5/F5',
+    data_path = 'data/build_features5.csv'
+    select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'F9']  # , 'Area_100_10'
     # 全局使用的变量
     data_x, data_y, convert_y = init_data(data_path, select_feature, 1)
     variable = getconfig('config.json')

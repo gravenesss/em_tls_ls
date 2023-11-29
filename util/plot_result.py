@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from util.feature_select import getXyByStr_fn
+from util.data_load import getNewXy_fn
 
 # notok： 得提供数据进行测试 plot_xys, plot_x_wbs
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号。画图之前调用
@@ -100,7 +100,7 @@ def plotObservePredict_fn(observe_tls, predict_tls, observe_em, predict_em, file
 def testObservePredict_fn():
     # 获取数据  未取对数
     select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']
-    data_x, data_y = getXyByStr_fn(select_feature)
+    data_x, data_y = getNewXy_fn(select_feature)
     # 数据集划分
     data_x1, data_y1 = data_x[:41], data_y[:41]
     data_x2, data_y2 = data_x[41:84], data_y[41:84]

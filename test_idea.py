@@ -1,23 +1,28 @@
-import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
+# 创建一个包含相关数据的DataFrame（示例数据）
+data = pd.DataFrame({'A': [1, 2, 3, 4, 5],
+                     'B': [5, 4, 3, 2, 1],
+                     'C': [2, 4, 6, 8, 10],
+                     'D': [10, 8, 6, 4, 2]})
 
-# data_size = 124
-#
-# for split in range(10):
-#     np.random.seed(split)
-#     random_indices = np.random.permutation(data_size)  # 随机排序
-#     print(random_indices)
-#
-# print("end=================")
-# for p in range(10):
-#     # 划分训练集与测试集
-#     np.random.seed(p)  # 保证每个训练集比例所对应的s次随机排列的顺序一致，每次排序都要使用，写在循环外不起作用
-#     random_datax = np.random.permutation(np.arange(0, 124, 1))  # 随机排序
-#     print(random_datax)
+# 计算Pearson相关系数
+pearson_corr = data.corr(method='pearson')
 
+# 计算Spearman相关系数
+spearman_corr = data.corr(method='spearman')
 
-# 假设 E_std 是一个形状为 (5,) 的数组，例如：
-E_std = np.array([1, 2, 3, 4, 5])
-# 生成一个 13x5 的矩阵，其中每列的值由 E_std 中的相应元素给定
-matrix = np.tile(E_std, (13, 1))
-print(matrix)
+# 绘制Pearson相关系数热力图
+plt.figure(figsize=(8, 6))
+sns.heatmap(pearson_corr, annot=True, cmap='coolwarm')
+plt.title('Pearson Correlation Heatmap')
+plt.show()
+
+# 绘制Spearman相关系数热力图
+plt.figure(figsize=(8, 6))
+sns.heatmap(spearman_corr, annot=True, cmap='coolwarm')
+plt.title('Spearman Correlation Heatmap')
+plt.show()
+

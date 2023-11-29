@@ -1,5 +1,5 @@
 {
-  "w_epsilon": 1e-6,
+  "w_epsilon": 1e-4,
   "correct": 1e-8,
   "RES_DIR": "result"
 
