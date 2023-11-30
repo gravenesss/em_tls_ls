@@ -21,7 +21,10 @@ def getLoss_fn(y_predict, y_test, err_type='rmse'):
 
 
 # 根据x w b y获取 误差：
-def getLossByWb_fn(x_test, y_test, w, b, convert_y='1', err_type='rmse'):
+def getLossByWb_fn(x_test, y_test, w, b, convert_y='1', err_type='rmse', E=None, r=None):
+    # if E is None and r is None:   # todo :编写给定E r 的方法
+    #     y_predict = now_x @ w_std * std_y + mean_y
+
     y_predict = np.dot(x_test, w) + b
     #  是否对 y 进行还原:  log10(y_original) = y'   =>   y_original = 10^y'
     if convert_y == 'log10':

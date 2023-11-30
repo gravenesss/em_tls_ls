@@ -96,6 +96,10 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
 
                 # 3) 进行训练 并还原计算rmse。 下面的方法中内部都没有进行标准化的：ls_fn、tls_fn、em_fn
                 # ls
+                # ls_w0_std = ls_fn(x2_after_std, y2_after_std)
+                # ls_w0, ls_b0 = getWb_fn(m, ls_w0_std, x2_with_noise_std, x2_with_noise_mean, y2_with_noise_std, y2_with_noise_mean)
+                # ls_err = getLossByWb_fn(copy_test_x2, copy_test_y2, ls_w0, ls_b0, err_type='rmse')
+                # ls
                 ls_w0_std = ls_fn(x2_after_std, y2_after_std)
                 ls_w0, ls_b0 = getWb_fn(m, ls_w0_std, x2_with_noise_std, x2_with_noise_mean, y2_with_noise_std, y2_with_noise_mean)
                 ls_err = getLossByWb_fn(copy_test_x2, copy_test_y2, ls_w0, ls_b0, err_type='rmse')

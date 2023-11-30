@@ -10,8 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
-from util.ls_tls import tls_fn
-# from util.loss import getLossByWb_fn
+from util.methods import tls_fn
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 
@@ -55,8 +54,7 @@ def compute_E2r2(X1, E1, r1, X2, distance='kdt'):
     return E2, r2
 
 
-def em_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, convert_y='1', plot_pic=False):
-    # xx_now, yy_now, xx_std, yy_std, xx_mean, yy_mean,
+def em_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, convert_y='1'):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -72,12 +70,8 @@ def em_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, conver
     w_std = tls_fn(now_x, now_y)
     w_pre = w_std
 
-    test_x_std = scale(test_x)
-
-    # 记录 w 和 rmse
-    wb_list = []
-    test1_list = []
-    target_list = []
+    # 记录 w, b, E, r
+    w_original, b_original, E, r = None, None, None, None
 
     while flag:
         # E步：
@@ -101,42 +95,21 @@ def em_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, conver
         # print("diag_x:", diag_x)
         # print("diag_x_inv", diag_x_inv)
 
-        # 计算 target
-        r_norm = np.sum(r ** 2)  # L2范数的平方 sqrt 再平方。
-        E_norm = np.linalg.norm(E @ diag_x, 'fro') ** 2  # F 范数的平方
-        lambda_r = 2 * np.transpose(r)  # 1*n
-        lapse = (now_x + E) @ w_std - now_y - r  # n*1
-        target = E_norm + r_norm + lambda_r @ lapse
-        target_list.append(target[0][0])
-        # print("lapse:", np.sqrt(np.sum(lapse ** 2)))
-        # print('target:', target)
-
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
-        wb_list.append(np.vstack((w_original, b_original)))
         # print("w_std.shape", w_std.shape)
-
-        # 测试误差: rmse_test = getLossByWb_fn(x_test, y_test, w_original, b_original, err_type='rmse', convert_y=convert_y)
-        test_rmse1 = np.sqrt(mean_squared_error(test_y, test_x @ w_original + b_original))
-
-        # 记录到数组
-        test1_list.append(test_rmse1)
 
         # 判断是否结束循环
         gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
         w_pre = w_std
         flag = False if gap <= w_epsilon else True
 
-    # sorted_data = sorted(zip(test1_list, wb_list))  # 要根据 rmse_list 排序，需要记录
-    # mid_rmse, mid_wb = sorted_data[len(sorted_data) // 2]
-    # return mid_rmse, mid_wb
-    return test1_list[-1], wb_list[-1]
+    return w_original, b_original, E, r
 
 
 def emTest_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, convert_y='1', plot_pic=False):
-    # xx_now, yy_now, xx_std, yy_std, xx_mean, yy_mean,
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -184,11 +157,11 @@ def emTest_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, co
         for i in range(m):
             diag_x[i][i] = (r_std + correct) / (E_std[i] + correct)
             diag_x_inv[i][i] = (E_std[i] + correct) / (r_std + correct)
-        # print("eta:", (r_std + correct) / (E_std + correct))
+        print("eta:", (r_std + correct) / (E_std + correct))
         # print("diag_x:", diag_x)
         # print("diag_x_inv", diag_x_inv)
 
-        # 计算 target
+        # 计算 target，正式训练不需要
         r_norm = np.sum(r ** 2)  # L2范数的平方 sqrt 再平方。
         E_norm = np.linalg.norm(E @ diag_x, 'fro') ** 2  # F 范数的平方
         lambda_r = 2 * np.transpose(r)  # 1*n
@@ -196,7 +169,7 @@ def emTest_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, co
         target = E_norm + r_norm + lambda_r @ lapse
         target_list.append(target[0][0])
         # print("lapse:", np.sqrt(np.sum(lapse ** 2)))
-        # print('target:', target)
+        print('target:', target)
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
@@ -205,7 +178,7 @@ def emTest_fn(train_x, train_y, test_x, test_y, w_epsilon=1e-6, correct=1e-2, co
         wb_list.append(np.vstack((w_original, b_original)))
         # print("w_std.shape", w_std.shape)
 
-        # 训练误差：
+        # 训练误差： 正式训练不需要，放在外面计算。
         # print("rmse:========================")
         train_rmse1 = np.sqrt(mean_squared_error(train_y, train_x @ w_original + b_original))  # wb还原
         train_rmse2 = np.sqrt(mean_squared_error(train_y, now_x @ w_std * std_y + mean_y))  # mean-std还原

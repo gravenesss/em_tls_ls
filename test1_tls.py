@@ -1,7 +1,7 @@
 from sklearn.model_selection import train_test_split
 from now_utils import *
 from util.data_load import init_data
-from util.ls_tls import tls_fn
+from util.methods import tls_fn
 from util.loss import getLossByWb_fn
 
 
