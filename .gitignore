@@ -8,4 +8,6 @@
 /.idea/vcs.xml
 /.idea/other.xml
 /result/
+/result_noise/
+/result_train/
 /pre/result/
