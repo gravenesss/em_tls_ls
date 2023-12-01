@@ -71,8 +71,9 @@ def ls_fn(x_new, y_new):
 # 求模型参数w,  x y 在 tls内部未进行标准化  w未进行还原
 def tls_fn(std_x, std_y):
     # 定义矩阵B
-    B = np.vstack((np.hstack((np.dot(std_x.T, std_x), np.dot(-std_x.T, std_y))),
-                   np.hstack((np.dot(-std_y.T, std_x), np.dot(std_y.T, std_y)))))
+    B = np.vstack((np.hstack((std_x.T @ std_x, -std_x.T @ std_y)),
+                   np.hstack((-std_y.T @ std_x, std_y.T @ std_y))
+                   ))
     # print("B==== ==== ==== ==== \n", B)
 
     # 求B最小特征值对应的特征向量

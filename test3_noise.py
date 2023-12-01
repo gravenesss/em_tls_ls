@@ -80,11 +80,11 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
 
                 # 进行训练
                 tls_w1, tls_b1 = tls(x2_with_noise, y2_with_noise)
-                tls_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, tls_w1, tls_b1, err_type='rmse')
+                tls_train_err = getLossByWb_fn(x2_with_noise, y2_with_noise, tls_w1, tls_b1, err_type='rmse')
                 tls_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, tls_w1, tls_b1, err_type='rmse')
                 # em 结果
                 em_w2, em_b2, E, r = em_fn(x2_with_noise, y2_with_noise, copy_test_x2, copy_test_y2, w_epsilon, correct)
-                em_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, em_w2, em_b2, err_type='rmse', E=E, r=r)
+                em_train_err = getLossByWb_fn(x2_with_noise, y2_with_noise, em_w2, em_b2, err_type='rmse', E=E, r=r)
                 em_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, em_w2, em_b2, err_type='rmse')
 
                 # 4） 记录每次实验的 rmse 和 wb

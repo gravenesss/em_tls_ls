@@ -13,7 +13,8 @@ from util.plot_result import plotXYs_fn, plotXWbs_fn
 from util.save_read_result import saveCsvRow_fn
 
 
-def train_data_increase(train_min, train_max, step, noise_ratio, split_num, noise_loop):
+# 不加噪声随机划分数据集 10000 次 查看效果
+def train_data_increase(train_min, train_max, step, split_num):
     seq_len = int(np.round((train_max + step - train_min) / step))
     train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
     data_size = len(data)
@@ -38,56 +39,29 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         for split in range(split_num):
             np.random.seed(split)
             random_datax = copy_data.reindex(np.random.permutation(copy_data.index))  # 随机排序
-            x1_train = np.array(random_datax.iloc[:train_size, :-1])  # todo 仅仅此处区别
+            x1_train = np.array(random_datax.iloc[:train_size, :-1])  # todo: 仅仅此处区别
             y1_train = np.log10(np.array(random_datax.iloc[:train_size, -1])).reshape(-1, 1)
             x1_test = np.array(random_datax.iloc[-test_last_10:, :-1])  # 最后的10%
             y1_test = np.log10(np.array(random_datax.iloc[-test_last_10:, -1])).reshape(-1, 1)
 
-            x1_std_pre = np.std(x1_train, axis=0)  # 噪声标准差使用之前的 std
-            y1_std_pre = np.std(y1_train, axis=0)
+            # 进行训练
+            tls_w1, tls_b1 = tls(x1_train, y1_train)
+            tls_train_err = getLossByWb_fn(x1_train, y1_train, tls_w1, tls_b1, err_type='rmse')
+            tls_test_err = getLossByWb_fn(x1_test, y1_test, tls_w1, tls_b1, err_type='rmse')
+            # em 结果
+            em_w2, em_b2, E, r = em_fn(x1_train, y1_train, w_epsilon, correct)
+            em_train_err = getLossByWb_fn(x1_train, y1_train, em_w2, em_b2, err_type='rmse', E=E, r=r)
+            em_test_err = getLossByWb_fn(x1_test, y1_test, em_w2, em_b2, err_type='rmse')
 
-            # 3） 添加 q 组随机噪声。 添加噪声前 pre。
-            for noise_id in range(noise_loop):
-                # 1）拷贝数据
-                copy_train_x2 = copy.deepcopy(x1_train)
-                copy_train_y2 = copy.deepcopy(y1_train)
-                copy_test_x2 = copy.deepcopy(x1_test)
-                copy_test_y2 = copy.deepcopy(y1_test)
-                copy_train_std_x2 = copy.deepcopy(x1_std_pre)
-                copy_train_std_y2 = copy.deepcopy(y1_std_pre)
-
-                # 2）添加噪声
-                np.random.seed(noise_id)
-                # a.种子不同
-                x2_noise = np.random.randn(copy_train_x2.shape[0], copy_train_x2.shape[1])  # n*m
-                y2_noise = np.random.randn(copy_train_y2.shape[0], 1)  # n*1
-                # b.噪声比例 c.噪声模式
-                x2_ratio_pattern = noise_ratio * noise_pattern[:-1]
-                y2_ratio_pattern = noise_ratio * noise_pattern[-1]
-                # d.x y 的标准差.   数据 → x2_with_noise， y2_with_noise
-                x2_with_noise = copy.deepcopy(copy_train_x2)  # 需要拷贝，不能直接赋值？，迭代会有问题？？ n*1 * 1*1 * 1*1
-                y2_with_noise = copy.deepcopy(copy_train_y2) + y2_noise * y2_ratio_pattern * copy_train_std_y2
-                for i in range(copy_train_x2.shape[1]):  # 随机噪声、比例、模式、标准差
-                    x2_with_noise[:, i] += x2_noise[:, i] * x2_ratio_pattern[i] * copy_train_std_x2[i]
-
-                # 3）进行训练
-                tls_w1, tls_b1 = tls(x2_with_noise, y2_with_noise)
-                tls_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, tls_w1, tls_b1, err_type='rmse')  # train
-                tls_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, tls_w1, tls_b1, err_type='rmse')     # test
-                em_w2, em_b2, E, r = em_fn(x2_with_noise, y2_with_noise, w_epsilon, correct)
-                em_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, em_w2, em_b2, err_type='rmse', E=E, r=r)
-                em_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, em_w2, em_b2, err_type='rmse')
-
-                # 4） 记录每次实验的 rmse 和 wb
-                # tls
-                tmp_tls_train.append(tls_train_err)
-                tmp_tls_rmse.append(tls_test_err)
-                tmp_tls_wb.append(np.vstack((tls_w1, tls_b1)).flatten().tolist())
-                # em
-                tmp_em_train.append(em_train_err)
-                tmp_em_rmse.append(em_test_err)
-                tmp_em_wb.append(np.vstack((em_w2, em_b2)).flatten().tolist())
-                pass
+            # 4） 记录每次实验的 rmse 和 wb
+            # tls
+            tmp_tls_train.append(tls_train_err)
+            tmp_tls_rmse.append(tls_test_err)
+            tmp_tls_wb.append(np.vstack((tls_w1, tls_b1)).flatten().tolist())
+            # em
+            tmp_em_train.append(em_train_err)
+            tmp_em_rmse.append(em_test_err)
+            tmp_em_wb.append(np.vstack((em_w2, em_b2)).flatten().tolist())
             pass
 
         # 记录 随机划分数据集 × 随机噪声 组 的中位数
@@ -165,21 +139,7 @@ if __name__ == '__main__':
     correct = variable['correct']
     RES_DIR = 'result_train'  # variable["RES_DIR"]
 
-    random_seeds = list(range(101, 102))
-    for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
-        np.random.seed(random_id)  # random_seeds[random_id]
-        noise_pattern = np.random.uniform(0.2, 2, 6)
-        # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-        # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        print(random_id, noise_pattern, "============================================")
-
-        NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
-        os.makedirs(NOW_DIR)
-        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.1, split_num=100, noise_loop=100)
+    NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
+    os.makedirs(NOW_DIR)
+    train_data_increase(0.2, 0.9, 0.1, split_num=10000)
     pass
-
-'''
-一个循环迭代中， 有a/b和 b/a， a,b都可能等于0，怎么添加平滑项进行处理
-但问题就是，迭代过程需要使用 a/b和 b/a的值，然而这样处理会导致循环迭代进入死循环，即前后两轮的 a/b和b/a的值一样。
-'''
-
