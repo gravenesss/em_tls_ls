@@ -153,6 +153,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
 
 
 # 7，26，30，33，35，48，71，78，80，81，83，84，96，106，114，115，121，126，129，
+# 22 27= 43 74 82 90 91 101 102
 # 区别只有：RES_DIR、train_data_increase。 划分数据集200次，随机噪声50次，减小噪声的影响。
 # 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
@@ -170,7 +171,7 @@ if __name__ == '__main__':
     correct = variable['correct']
     RES_DIR = 'result_train1'  # variable["RES_DIR"]
 
-    random_seeds = list(range(22, 23))
+    random_seeds = list(range(91, 92))
     for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
         np.random.seed(random_id)  # random_seeds[random_id]
         noise_pattern = np.random.uniform(0.2, 2, 6)

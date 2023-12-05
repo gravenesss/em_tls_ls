@@ -91,13 +91,14 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x @ w1                 # m*m * m*1 = m*1 m=5
-        w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
 
         # 判断是否结束循环
         gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
         w_pre = w_std
         flag = False if gap <= w_epsilon else True
         iteration += 1
+
+    w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
 
     return w_original, b_original, E, r
 
