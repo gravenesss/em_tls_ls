@@ -168,7 +168,7 @@ if __name__ == '__main__':
     correct = variable['correct']
     RES_DIR = 'result_noise'  # variable["RES_DIR"]
 
-    random_seeds = list(range(43, 44))
+    random_seeds = list(range(0, 47))
     for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
         np.random.seed(random_id)  # random_seeds[random_id]
         noise_pattern = np.random.uniform(0.2, 2, 6)
@@ -178,5 +178,5 @@ if __name__ == '__main__':
         NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
         os.makedirs(NOW_DIR)
 
-        noise_increase(0.0, 0.5, 0.05, test_ratio=0.1, split_num=200, noise_loop=50)
+        noise_increase(0.0, 0.5, 0.05, test_ratio=0.1, split_num=200, noise_loop=100)
     pass

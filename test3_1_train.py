@@ -159,7 +159,7 @@ if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
     # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']  # 2 3 5 6 9
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6']  # 'D5/F5', , 'Area_100_10'  , 'F9'
+    select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'Area_100_10']  # 'D5/F5', , 'Area_100_10'  , 'F9'
     # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F8', 'D3']  # → F2, Area, F6 F8 D3
     # data_x, data_y, convert_y = init_data(data_path, select_feature, 1)  # 全局使用
 
@@ -168,19 +168,19 @@ if __name__ == '__main__':
     variable = getconfig('config.json')
     w_epsilon = variable['w_epsilon']
     correct = variable['correct']
-    RES_DIR = 'result_train'  # variable["RES_DIR"]
+    RES_DIR = 'result_train1'  # variable["RES_DIR"]
 
-    random_seeds = list(range(43, 44))
+    random_seeds = list(range(22, 23))
     for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
         np.random.seed(random_id)  # random_seeds[random_id]
-        noise_pattern = np.random.uniform(0.2, 2, 6)  #
+        noise_pattern = np.random.uniform(0.2, 2, 6)
         # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         print(random_id, noise_pattern, "============================================")
         NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
         os.makedirs(NOW_DIR)
 
-        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.1, split_num=200, noise_loop=50)
+        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=200, noise_loop=100)
     pass
 
 '''

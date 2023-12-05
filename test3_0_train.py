@@ -137,9 +137,9 @@ if __name__ == '__main__':
     variable = getconfig('config.json')
     w_epsilon = variable['w_epsilon']
     correct = variable['correct']
-    RES_DIR = 'result_train'  # variable["RES_DIR"]
+    RES_DIR = 'result_train0'  # variable["RES_DIR"]
 
-    NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
+    NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))+'-2369a-2~9'
     os.makedirs(NOW_DIR)
-    train_data_increase(0.3, 0.9, 0.1, split_num=10000)
+    train_data_increase(0.2, 0.9, 0.1, split_num=10000)
     pass
