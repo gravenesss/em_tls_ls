@@ -67,7 +67,6 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
     m = now_x.shape[1]
     diag_x = np.eye(m)
     diag_x_inv = np.eye(m)
-    eta = [1.0] * m
     w_std = tls_fn(now_x, now_y)
     w_pre = w_std
 
@@ -77,24 +76,21 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
     max_iteration = 64
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
-        wT = w_std.T.reshape(1, -1)  # 1*m
-        diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
+        wT = w_std.T.reshape(1, -1)                 # 1*m
+        diag_x_inv2 = diag_x_inv @ diag_x_inv       # m*m
         denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
-        E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
+        E = -r @ wT @ diag_x_inv2                   # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
-
         for i in range(m):
             diag_x[i][i] = (r_std + now_correct) / (E_std[i] + now_correct)
             diag_x_inv[i][i] = (E_std[i] + now_correct) / (r_std + now_correct)
-        # assert all(xi != 0.0 for xi in E_std), "样本误差E 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
-        # assert all(xi != 0.0 for xi in r_std), "标签误差r 的标准差存在为0的情况"
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
-        w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
+        w_std = diag_x @ w1                 # m*m * m*1 = m*1 m=5
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
 
         # 判断是否结束循环
@@ -106,7 +102,7 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
     return w_original, b_original, E, r
 
 
-def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, correct=1e-2, plot_pic=False):
+def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correct=1e-2, plot_pic=False):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -119,7 +115,6 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, correct=1e
     m = now_x.shape[1]
     diag_x = np.eye(m)
     diag_x_inv = np.eye(m)
-    eta = [1.0] * m
     w_std = tls_fn(now_x, now_y)
     w_pre = w_std
 
@@ -134,30 +129,25 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, correct=1e
     test4_list = []
     target_list = []
 
-    while flag:
+    iteration = 0
+    max_iteration = 64
+    while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
-        wT = w_std.T.reshape(1, -1)  # 1*m
-        diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
+        wT = w_std.T.reshape(1, -1)                 # 1*m
+        diag_x_inv2 = diag_x_inv @ diag_x_inv       # m*m
         denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
-        E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
+        E = -r @ wT @ diag_x_inv2                   # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
+        for i in range(m):
+            diag_x[i][i] = (r_std + now_correct) / (E_std[i] + now_correct)
+            diag_x_inv[i][i] = (E_std[i] + now_correct) / (r_std + now_correct)
+
         assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
         assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
-        for i in range(m):
-            diag_x[i][i] = (r_std + correct) / (E_std[i] + correct)
-            diag_x_inv[i][i] = (E_std[i] + correct) / (r_std + correct)
-        eta_pre = eta
-        eta = (r_std + correct) / (E_std + correct)
-        print("eta:", eta, '\neta_pre:', eta_pre)
-        # np.allclose(eta, eta_pre, atol=1e-12) not 绝对误差大于1e-12  not np.array_equal(eta, eta_pre)
-        # eta_diff = [np.abs(ai - eta[i]) > 1e-50 for i, ai in enumerate(eta_pre)]
-        if all([np.abs(ai - eta[i]) <= 1e-40 for i, ai in enumerate(eta_pre)]):
-            diag_x, diag_x_inv = np.eye(m), np.eye(m)
-            now_correct = now_correct * 10
-        # assert all(eta_diff), "diag_x 前后两轮完全一样，陷入死循环"
+        print("eta:", (r_std + now_correct) / (E_std + now_correct))
         # print("E.shape:", E.shape, "  r.shape:", r.shape)
         # print("E_std:", E_std, "r_std:", r_std)
         # print("diag_x:", diag_x)
@@ -175,7 +165,7 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, correct=1e
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
-        w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
+        w_std = diag_x @ w1                 # m*m * m*1 = m*1 m=5
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
         # print("w_std.shape", w_std.shape)
 
@@ -204,6 +194,7 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, correct=1e
         gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
         w_pre = w_std
         flag = False if gap <= w_epsilon else True
+        iteration += 1
 
     len_em = len(train1_list)
     tls_w_std = tls_fn(now_x, now_y)

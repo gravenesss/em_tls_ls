@@ -18,7 +18,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
     train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
     data_size = len(data)
     test_last_10 = int(data_size * 0.1)  # 未进行四舍五入
-    print(train_sequence, len(train_sequence))
+    # print("train_sequence: ", train_sequence, len(train_sequence))
 
     # 0. 记录 tls 和 em 的结果
     mid_tls_train, mid_em_train = [], []
@@ -123,7 +123,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         seq = train_sequence
         title = "Train Size VS RMSE\n" + '随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(noise_loop)
         x_label = 'Proportion of Training Data'
-        x_err1_img, x_err2_img = 'train_train.png', 'train_test.png'
+        x_train_img, x_test_img = 'train_train.png', 'train_test.png'
         wb_img = 'train_w.png'
         # 保存csv   类型、耗时、特征； 超参w/correct； 噪声模式； 噪声缩放比例； 训练集比例； 划分数据集； 噪声次数
         comments = ['噪声比例增大', '耗时：' + str(start) + ' -- ' + str(end), '特征选择：' + str(select_feature),
@@ -137,10 +137,10 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         csv_file = 'train.csv'
 
         # 1. 绘制 rmse 图像
+        plotXYs_fn(seq, [mid_tls_train, mid_em_train], x_label, 'Train RMSE',
+                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_train_img, title)
         plotXYs_fn(seq, [mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
-                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err1_img, title)
-        # plotXYs_fn(seq, [mid_tls_train, mid_em_train], x_label, 'Train RMSE',
-        #            ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err2_img, title)
+                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_test_img, title)
         # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
         feature_len = len(select_feature)
         plotXWbs_fn(seq, [mid_tls_wb, mid_em_wb], x_label, ['tls', 'em'], ['s', 'p'], feature_len, NOW_DIR, wb_img)
@@ -148,16 +148,18 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         saveCsvRow_fn(seq, [mid_tls_rmse, mid_em_rmse, mid_tls_wb.tolist(), mid_em_wb.tolist()],
                       csv_x, ['tls_rmse', 'em_rmse', 'tls_wb', 'em_wb'],
                       comments, NOW_DIR, csv_file)
+
     pass
 
 
-# 区别只有：RES_DIR、train_data_increase
+# 7，26，30，33，35，48，71，78，80，81，83，84，96，106，114，115，121，126，129，
+# 区别只有：RES_DIR、train_data_increase。 划分数据集200次，随机噪声50次，减小噪声的影响。
 # 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
-    data_path = 'data/build_features.csv'
     # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']  # 2 3 5 6 9
-    select_feature = ['V1/D2/F2', 'F3', 'F6', 'F9', 'Area_100_10']  # 'D5/F5', , 'Area_100_10'
+    data_path = 'data/build_features.csv'
+    select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6']  # 'D5/F5', , 'Area_100_10'  , 'F9'
     # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F8', 'D3']  # → F2, Area, F6 F8 D3
     # data_x, data_y, convert_y = init_data(data_path, select_feature, 1)  # 全局使用
 
@@ -168,21 +170,20 @@ if __name__ == '__main__':
     correct = variable['correct']
     RES_DIR = 'result_train'  # variable["RES_DIR"]
 
-    random_seeds = list(range(50, 150))
+    random_seeds = list(range(43, 44))
     for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
         np.random.seed(random_id)  # random_seeds[random_id]
-        noise_pattern = np.random.uniform(0.2, 2, 6)
+        noise_pattern = np.random.uniform(0.2, 2, 6)  #
         # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         print(random_id, noise_pattern, "============================================")
-
         NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
         os.makedirs(NOW_DIR)
-        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.1, split_num=100, noise_loop=100)
+
+        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.1, split_num=200, noise_loop=50)
     pass
 
 '''
 一个循环迭代中， 有a/b和 b/a， a,b都可能等于0，怎么添加平滑项进行处理
 但问题就是，迭代过程需要使用 a/b和 b/a的值，然而这样处理会导致循环迭代进入死循环，即前后两轮的 a/b和b/a的值一样。
 '''
-

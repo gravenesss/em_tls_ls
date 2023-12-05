@@ -19,7 +19,7 @@ def train_data_increase(train_min, train_max, step, split_num):
     train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
     data_size = len(data)
     test_last_10 = int(data_size * 0.1)  # 未进行四舍五入
-    print(train_sequence, len(train_sequence))
+    # print("train_sequence: ", train_sequence, len(train_sequence))
 
     # 0. 记录 tls 和 em 的结果
     mid_tls_train, mid_em_train = [], []
@@ -108,10 +108,10 @@ def train_data_increase(train_min, train_max, step, split_num):
         csv_file = 'train.csv'
 
         # 1. 绘制 rmse 图像
-        plotXYs_fn(seq, [mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
-                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err1_img, title)
         # plotXYs_fn(seq, [mid_tls_train, mid_em_train], x_label, 'Train RMSE',
-        #            ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err2_img, title)
+        #            ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err1_img, title)
+        plotXYs_fn(seq, [mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
+                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_err2_img, title)
         # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
         feature_len = len(select_feature)
         plotXWbs_fn(seq, [mid_tls_wb, mid_em_wb], x_label, ['tls', 'em'], ['s', 'p'], feature_len, NOW_DIR, wb_img)
@@ -126,8 +126,8 @@ def train_data_increase(train_min, train_max, step, split_num):
 # 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
+    # select_feature = ['F2', 'F3', 'F5', 'F6' 'F9']
     data_path = 'data/build_features.csv'
-    # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']  # 2 3 5 6 9
     select_feature = ['V1/D2/F2', 'F3', 'F6', 'F9', 'Area_100_10']  # 'D5/F5', , 'Area_100_10'
     # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F8', 'D3']  # → F2, Area, F6 F8 D3
     # data_x, data_y, convert_y = init_data(data_path, select_feature, 1)  # 全局使用
@@ -141,5 +141,5 @@ if __name__ == '__main__':
 
     NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S"))
     os.makedirs(NOW_DIR)
-    train_data_increase(0.2, 0.9, 0.1, split_num=10000)
+    train_data_increase(0.3, 0.9, 0.1, split_num=10000)
     pass

@@ -40,6 +40,9 @@ def plotXWbs_fn(sequence, ys, x_label, labels, markers, feature_len, file_dir, f
         ax.set_ylabel('The value of ' + y_label)
         # ax.set_title(title)   # 设置子图标题
         ax.legend()  # 添加图例
+
+        if i == feature_len:
+            break
     plt.tight_layout()  # 调整子图布局的间距
 
     # 进行保存和显示
