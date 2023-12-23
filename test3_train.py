@@ -128,9 +128,7 @@ if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
     # select_feature = ['F2', 'F3', 'F5', 'F6' 'F9']
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'F3', 'F6', 'F9', 'Area_100_10']  # 'D5/F5', , 'Area_100_10'
-    # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F8', 'D3']  # → F2, Area, F6 F8 D3
-    # data_x, data_y, convert_y = init_data(data_path, select_feature, 1)  # 全局使用
+    select_feature = ['V1/D2/F2', 'F3', 'F6', 'Area_100_10']  # 'D5/F5', , 'Area_100_10' 'F9',
 
     data_all = pd.read_csv(data_path)
     data = data_all[select_feature + ['cycle_life']]

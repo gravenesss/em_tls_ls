@@ -126,7 +126,10 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     end = datetime.now().strftime("%H:%M:%S")
     print(start + " -- " + end)
 
-    if True:
+    if mid_ls_rmse[-1] >= mid_em_rmse[-1]:  # and mid_ls_rmse[-1] >= mid_em_rmse[-1]:
+        NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(outer_id))
+        os.makedirs(NOW_DIR)
+
         print("ls     : ", mid_ls_rmse)
         print("tls    : ", mid_tls_rmse)
         print("em     : ", mid_em_rmse)
@@ -138,7 +141,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
 
         seq = noise_sequence
         title = "Noise Ratio VS RMSE\n" + '随机划分数据集次数：' + str(split_num) + '  随机生成噪声次数：' + str(
-            noise_loop)
+            noise_loop) + '\n' + '噪声模式：' + str(noise_pattern)
         x_label = 'Increase of Noise Ratio'
         x_train_img, x_test_img = 'noise_train.png', 'noise_test.png'
         wb_img = 'noise_w.png'
@@ -177,9 +180,9 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
 # 排序后的特征： 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
-    # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']  #
+    # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F3']  # 'D5/F5', 'Area_100_10', 'F9',  'F6',
+    select_feature = ['V1/D2/F2', 'Area_100_10', 'F6']
     data_all = pd.read_csv(data_path)
     data = data_all[select_feature + ['cycle_life']]
 
@@ -188,34 +191,22 @@ if __name__ == '__main__':
 
     correct = variable['correct']
     max_iter_em = variable['max_iter_em']
-    now_dir = variable['noise_dir']  # 后面的字符串不同
+    now_dir = 'noise_test'  # 后面的字符串不同
 
-    # noise_pattern = np.array([0.4, 1.0, 0.1, 0.03, 0.9])  # []
-    # NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + 'me')
-    # os.makedirs(NOW_DIR)
-    # noise_increase(0.0, 0.9, 0.1, test_ratio=0.1, split_num=40, noise_loop=10)
+    outer_id = -1
+    noise_pattern = np.array([1.0, 1.0, 0.9, 0.1])  # 1.0, 0.5, 0.01
+    print(noise_pattern, "============================================")
+    noise_increase(0.0, 0.95, 0.1, test_ratio=0.1, split_num=30, noise_loop=10)
 
-    # patterns = [[20.0, 15.0, 0.1, 0.5], [20.0, 10.0, 0.1, 0.5], [50.0, 20.0, 0.2, 1.0], [30.0, 10.0, 0.1, 1.0]]
-    # for i in range(len(patterns)):
-    #     noise_pattern = np.array(patterns[i])
-    #     print(i, noise_pattern, "============================================")
-    #     NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(i))
-    #     os.makedirs(NOW_DIR)
-    #     noise_increase(0.0, 0.9, 0.1, test_ratio=0.1, split_num=200, noise_loop=200)
+    # outer_id = 0
+    # for h1 in np.arange(0.0, 1.1, 0.1):
+    #     for h2 in np.arange(0.0, 1.1, 0.1):
+    #         for h3 in np.arange(0.0, 1.1, 0.1):
+    #             # for h4 in np.arange(0.0, 1.1, 0.2):
+    #             #     for h5 in np.arange(0.0, 1.1, 0.2):
+    #             noise_pattern = np.array([h1, h2, h3, 0.1])
+    #             print(outer_id, noise_pattern, "============================================")
+    #             noise_increase(0.1, 0.9, 0.1, test_ratio=0.1, split_num=30, noise_loop=10)
+    #             outer_id += 1
 
-    random_seeds = list(range(50, 250))
-    for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
-        np.random.seed(random_id)  # random_seeds[random_id]
-        # h1, h2, h3, h4, h5 = np.random.uniform(500, 1000, 1)[0], np.random.uniform(100, 500, 1)[0], \
-        #                      np.random.uniform(50, 100, 1)[0], np.random.uniform(5, 50, 1)[0], \
-        #                      np.random.uniform(30, 1000, 1)[0]
-        # noise_pattern = np.array([h1, h2, h3, h4, h5])
-        noise_pattern = np.random.uniform(0.001, 1.0, 5)  # todo: 每次特征个数变化后，需要修改长度为特征个数+1。
-        # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-        # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        print(random_id, noise_pattern, "============================================")
-        NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
-        os.makedirs(NOW_DIR)
-
-        noise_increase(0.1, 0.9, 0.1, test_ratio=0.1, split_num=30, noise_loop=10)
     pass

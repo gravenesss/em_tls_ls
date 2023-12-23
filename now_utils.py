@@ -1,5 +1,5 @@
 from scipy.spatial import KDTree
-from sklearn.preprocessing import scale
+from sklearn.preprocessing import scale, StandardScaler
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import mean_squared_error
@@ -13,6 +13,32 @@ from sklearn.preprocessing import PolynomialFeatures
 from util.methods import tls_fn
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
+
+def rmse(y_true, y_pred):
+    return np.sqrt(sum(np.square(y_true - y_pred)) / len(y_true))
+def std_xy(x_train, y_train):
+    stand_scaler = StandardScaler()
+    # 标准化X_train
+    standard_X = np.std(x_train, axis=0).reshape(-1, 1)
+    std_X = stand_scaler.fit_transform(x_train)
+    mean_X = stand_scaler.mean_.reshape(-1, 1)
+
+    # 标准化Y_train
+    standard_Y = np.std(y_train, axis=0).reshape(-1, 1)
+    mean_Y = np.array(np.mean(y_train)).reshape(-1, 1)
+    std_Y = (y_train - mean_Y) / standard_Y
+    return standard_X, std_X, mean_X, standard_Y, std_Y, mean_Y
+    pass
+
+
+def get_wb(n, std_w, standard_x, mean_x, standard_y, mean_y):
+    W = np.dot(std_w, standard_y) / standard_x
+    _ = 0
+    for i in range(n):
+        _ = _ + std_w[i] * mean_x[i] * standard_y / standard_x[i]
+    b = mean_y - _
+    return W, b
+    pass
 
 
 # 获取原先wb
@@ -55,7 +81,12 @@ def compute_E2r2(X1, E1, r1, X2, distance='kdt'):
     return E2, r2
 
 
-def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
+def ls_fn(x_new, y_new):
+    std_w = np.linalg.inv(x_new.T.dot(x_new)).dot(x_new.T).dot(y_new)
+    return std_w
+
+
+def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -73,7 +104,6 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2):
     # 记录 w, b, E, r
     w_original, b_original, E, r = None, None, None, None
     iteration = 0
-    max_iteration = 64
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
         wT = w_std.T.reshape(1, -1)                 # 1*m

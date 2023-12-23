@@ -31,7 +31,7 @@ def noise_increase(noise_min, noise_max, step, test_ratio, split_num, noise_loop
     mid_lasso_rmse = []
 
     start = datetime.now().strftime("%H:%M:%S")
-    # 1）噪声比例以此增大      # for now_id, noise_ratio in enumerate(noise_sequence):
+    # 1）噪声比例依次增大      # for now_id, noise_ratio in enumerate(noise_sequence):
     for now_id in trange(seq_len, desc='Progress', unit='loop'):
         noise_ratio = noise_sequence[now_id]
         tmp_ls_rmse, tmp_ls_wb = [], []

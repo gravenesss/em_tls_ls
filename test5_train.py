@@ -8,7 +8,7 @@ from datetime import datetime
 from now_utils import em_fn
 from util.data_load import getconfig
 from util.loss import getLossByWb_fn
-from util.methods import tls
+from util.methods import tls, ls
 from util.plot_result import plotXYs_fn, plotXWbs_fn
 from util.save_read_result import saveCsvRow_fn
 
@@ -21,7 +21,8 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
     # print("train_sequence: ", train_sequence, len(train_sequence))
 
     # 0. 记录 tls 和 em 的结果
-    mid_tls_train, mid_em_train = [], []
+    # mid_tls_train, mid_em_train = [], []
+    mid_ls_rmse, mid_ls_wb = [], []
     mid_tls_rmse, mid_tls_wb = [], []
     mid_em_rmse, mid_em_wb = [], []
 
@@ -29,7 +30,8 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
     # 1）噪声比例以此增大
     for now_id in trange(seq_len, desc='Progress', unit='loop'):
         train_size = int(round(data_size * train_sequence[now_id]))  # todo: 不同 四舍五入了
-        tmp_tls_train, tmp_em_train = [], []
+        # tmp_tls_train, tmp_em_train = [], []
+        tmp_ls_rmse, tmp_ls_wb = [], []
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
         copy_data = copy.deepcopy(data)
@@ -71,26 +73,37 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
                     x2_with_noise[:, i] += x2_noise[:, i] * x2_ratio_pattern[i] * copy_train_std_x2[i]
 
                 # 3）进行训练
+                ls_w, ls_b = ls(x2_with_noise, y2_with_noise)
+                ls_err = getLossByWb_fn(copy_test_x2, copy_test_y2, ls_w, ls_b, err_type='rmse')  # test
                 tls_w1, tls_b1 = tls(x2_with_noise, y2_with_noise)
-                tls_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, tls_w1, tls_b1, err_type='rmse')  # train
-                tls_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, tls_w1, tls_b1, err_type='rmse')     # test
-                em_w2, em_b2, E, r = em_fn(x2_with_noise, y2_with_noise, w_epsilon, correct)
-                em_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, em_w2, em_b2, err_type='rmse', E=E, r=r)
+                # tls_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, tls_w1, tls_b1, err_type='rmse')  # train
+                tls_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, tls_w1, tls_b1, err_type='rmse')  # test
+                em_w2, em_b2, E, r = em_fn(x2_with_noise, y2_with_noise, w_epsilon, correct, max_iter_em)
+                # em_train_err = getLossByWb_fn(copy_train_x2, copy_train_y2, em_w2, em_b2, err_type='rmse', E=E, r=r)
                 em_test_err = getLossByWb_fn(copy_test_x2, copy_test_y2, em_w2, em_b2, err_type='rmse')
 
                 # 4） 记录每次实验的 rmse 和 wb
+                # ls
+                tmp_ls_rmse.append(ls_err)
+                tmp_ls_wb.append(np.vstack((ls_w, ls_b)).flatten().tolist())
                 # tls
-                tmp_tls_train.append(tls_train_err)
+                # tmp_tls_train.append(tls_train_err)
                 tmp_tls_rmse.append(tls_test_err)
                 tmp_tls_wb.append(np.vstack((tls_w1, tls_b1)).flatten().tolist())
                 # em
-                tmp_em_train.append(em_train_err)
+                # tmp_em_train.append(em_train_err)
                 tmp_em_rmse.append(em_test_err)
                 tmp_em_wb.append(np.vstack((em_w2, em_b2)).flatten().tolist())
                 pass
             pass
 
         # 记录 随机划分数据集 × 随机噪声 组 的中位数
+        # ls
+        sort_index = np.argsort(tmp_ls_rmse)  # 对应的数据
+        mid_index = sort_index[len(sort_index) // 2]
+        mid_err, mid_wb = tmp_ls_rmse[mid_index], tmp_ls_wb[mid_index]
+        mid_ls_rmse.append(mid_err)  # mid_...
+        mid_ls_wb.append(mid_wb)  # mid_...
         # tls
         sort_index = np.argsort(tmp_tls_rmse)  # 从小到大，最大的放在最后
         mid_index = sort_index[len(sort_index) // 2]
@@ -98,7 +111,7 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         mid_tls_rmse.append(mid_err)
         mid_tls_wb.append(mid_wb)
         # tls-train
-        mid_tls_train.append(np.median(tmp_tls_train))
+        # mid_tls_train.append(np.median(tmp_tls_train))
         # em
         sort_index = np.argsort(tmp_em_rmse)
         mid_index = sort_index[len(sort_index) // 2]
@@ -106,15 +119,17 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         mid_em_rmse.append(mid_err)
         mid_em_wb.append(mid_wb)
         # em-train
-        mid_em_train.append(np.median(tmp_em_train))
+        # mid_em_train.append(np.median(tmp_em_train))
         pass
 
     end = datetime.now().strftime("%H:%M:%S")
     print(start + " -- " + end)
 
     if True:
+        print("ls     :", mid_ls_rmse)
         print("tls    : ", mid_tls_rmse)
         print("em     : ", mid_em_rmse)
+        mid_ls_wb = np.array(mid_ls_wb)
         mid_tls_wb = np.array(mid_tls_wb)
         mid_em_wb = np.array(mid_em_wb)
         # print("中位数-tls-wb ：", mid_tls_wb)
@@ -137,51 +152,54 @@ def train_data_increase(train_min, train_max, step, noise_ratio, split_num, nois
         csv_file = 'train.csv'
 
         # 1. 绘制 rmse 图像
-        plotXYs_fn(seq, [mid_tls_train, mid_em_train], x_label, 'Train RMSE',
-                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_train_img, title)
-        plotXYs_fn(seq, [mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
-                   ['tls', 'em'], ['s', 'p'], NOW_DIR, x_test_img, title)
+        # plotXYs_fn(seq, [mid_tls_train, mid_em_train], x_label, 'Train RMSE',
+        #            ['tls', 'em'], ['s', 'p'], NOW_DIR, x_train_img, title)
+        plotXYs_fn(seq, [mid_ls_rmse, mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
+                   ['ls', 'tls', 'em'], ['s', 'p', '*'], NOW_DIR, x_test_img, title)
         # 2. 绘制 w 和 b 随噪声变化的值。 使用前面的 x_label
         feature_len = len(select_feature)
-        plotXWbs_fn(seq, [mid_tls_wb, mid_em_wb], x_label, ['tls', 'em'], ['s', 'p'], feature_len, NOW_DIR, wb_img)
+        plotXWbs_fn(seq, [mid_ls_wb, mid_tls_wb, mid_em_wb], x_label, ['ls', 'tls', 'em'],
+                    ['s', 'p', '*'], feature_len, NOW_DIR, wb_img)
         # 3. 保存训练数据
-        saveCsvRow_fn(seq, [mid_tls_rmse, mid_em_rmse, mid_tls_wb.tolist(), mid_em_wb.tolist()],
-                      csv_x, ['tls_rmse', 'em_rmse', 'tls_wb', 'em_wb'],
+        saveCsvRow_fn(seq, [mid_ls_rmse, mid_tls_rmse, mid_em_rmse, mid_ls_wb.tolist(), mid_tls_wb.tolist(),
+                            mid_em_wb.tolist()],
+                      csv_x, ['ls-rmse', 'tls_rmse', 'em_rmse', 'ls_wb', 'tls_wb', 'em_wb'],
                       comments, NOW_DIR, csv_file)
 
     pass
 
 
-# 7，26，30，33，35，48，71，78，80，81，83，84，96，106，114，115，121，126，129，
-# 22 27= 43 74 82 90 91 101 102
+# 2369area: [27, 43, 74, 82, 91, 101, 153, 156, 164, 189, 216, 225, 228, 236, 241, 248, 273, 280, 283]  19个
+# → [22, 90, 280]  其他的在0.3~0.4，0.8~0.9有上升趋势，如果处理，需要加大训练次数。
+# 236area：[16, 47, 48, 55, 57, 65, 91, 144, 153, 156, 166, 206, 225, 229, 247, 266, 268, 274, 296]
+# →      : [16, 47, 48, 55, 57, 144, 153, 156, 225, 229, 266, 268, 274, 296] # 65, 91, 166, 206, 247
 # 区别只有：RES_DIR、train_data_increase。 划分数据集200次，随机噪声50次，减小噪声的影响。
 # 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
-    # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']  # 2 3 5 6 9
+    # select_feature = ['F2', 'F3', 'F5', 'F6' 'F9']
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'F6', 'Area_100_10']  # 'D5/F5', , 'Area_100_10'  , 'F9'
-    # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'F8', 'D3']  # → F2, Area, F6 F8 D3
-    # data_x, data_y, convert_y = init_data(data_path, select_feature, 1)  # 全局使用
-
+    select_feature = ['V1/D2/F2', 'F3', 'F6', 'Area_100_10']  # 'D5/F5', 'Area_100_10' 'F9',
     data_all = pd.read_csv(data_path)
     data = data_all[select_feature + ['cycle_life']]
+
     variable = getconfig('config.json')
     w_epsilon = variable['w_epsilon']
     correct = variable['correct']
-    RES_DIR = 'result_train1'  # variable["RES_DIR"]
+    max_iter_em = variable['max_iter_em']
+    now_dir = variable['train_dir']  # 后面的字符串不同
 
-    random_seeds = list(range(91, 92))
+    random_seeds = list(range(20))
     for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
         np.random.seed(random_id)  # random_seeds[random_id]
-        noise_pattern = np.random.uniform(0.2, 2, 6)
+        noise_pattern = np.random.uniform(2, 100, 5)  # todo: 每次特征个数变化后，需要修改长度为特征个数+1。
         # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         print(random_id, noise_pattern, "============================================")
-        NOW_DIR = os.path.join(RES_DIR, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
+        NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
         os.makedirs(NOW_DIR)
 
-        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=200, noise_loop=100)
+        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=300, noise_loop=100)
     pass
 
 '''

@@ -1,5 +1,7 @@
 {
   "w_epsilon": 1e-4,
-  "correct": 1e-2,
-  "RES_DIR": "result"
+  "correct": 1e-1,
+  "max_iter_em": 24,
+  "noise_dir": "result_noise",
+  "train_dir": "result_train1"
 }
