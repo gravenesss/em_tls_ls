@@ -13,6 +13,7 @@ from tqdm import trange
 from util.methods import tls, ls
 from now_utils import em_fn, rmse
 
+np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号。画图之前调用
 plt.rcParams['font.family'] = ['SimSun']
 
@@ -109,7 +110,7 @@ def test(noise_pattern):
 
 
 if __name__ == '__main__':
-    select_feature = ['F2', 'F3', 'F5', 'cycle_life']  # 'F6',
+    select_feature = ['F2', 'F3', 'F5', 'F7', 'F9', 'cycle_life']  # 'F6',
     data_all = pd.read_csv('./data/dataset.csv')
 
     # select_feature = ['V1/D2/F2', 'Area_100_10', 'F6', 'cycle_life']  # 'F3',
@@ -123,10 +124,10 @@ if __name__ == '__main__':
     noise_seq_len = 10
     split_num = 40
     noise_loop = 15
-    w_epsilon, correct, max_iter_em = 1e-3, 1e-1, 20
+    w_epsilon, correct, max_iter_em = 1e-6, 1e-1, 20
     # F2 0.4~1.0 em<ls  0~0.4 tls<ls
     # F3比较小时，em<=ls
-    pattern = np.array([1.0, 0.9, 0.3, 0.1])  # y的噪声越小，em tls误差越小。
+    pattern = np.array([0.5, 0.8, 0.1, 0.1, 0.9, 0.1])  # y的噪声越小，em tls误差越小。
     test(pattern)
 
     # outer_id = 0

@@ -14,8 +14,11 @@ from util.methods import tls_fn
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 
+
 def rmse(y_true, y_pred):
     return np.sqrt(sum(np.square(y_true - y_pred)) / len(y_true))
+
+
 def std_xy(x_train, y_train):
     stand_scaler = StandardScaler()
     # 标准化X_train
@@ -81,11 +84,6 @@ def compute_E2r2(X1, E1, r1, X2, distance='kdt'):
     return E2, r2
 
 
-def ls_fn(x_new, y_new):
-    std_w = np.linalg.inv(x_new.T.dot(x_new)).dot(x_new.T).dot(y_new)
-    return std_w
-
-
 def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
@@ -106,11 +104,11 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     iteration = 0
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
-        wT = w_std.T.reshape(1, -1)                 # 1*m
-        diag_x_inv2 = diag_x_inv @ diag_x_inv       # m*m
+        wT = w_std.T.reshape(1, -1)  # 1*m
+        diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
         denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
-        E = -r @ wT @ diag_x_inv2                   # n*1 * 1*m * m*m => n*m 111*5
+        E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
@@ -120,7 +118,7 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
-        w_std = diag_x @ w1                 # m*m * m*1 = m*1 m=5
+        w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
 
         # 判断是否结束循环
         gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
@@ -133,7 +131,101 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     return w_original, b_original, E, r
 
 
-def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correct=1e-2, plot_pic=False):
+def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
+    std_x = np.std(train_x, axis=0)
+    mean_x = np.mean(train_x, axis=0)
+    std_y = np.std(train_y, axis=0)
+    mean_y = np.mean(train_y, axis=0)
+    now_x = scale(train_x)
+    now_y = scale(train_y)
+    now_x1 = StandardScaler().fit_transform(train_x)
+    now_y1 = StandardScaler().fit_transform(train_y)
+
+    flag = True
+    m = now_x.shape[1]
+    diag_x = np.eye(m)
+    diag_x_inv = np.eye(m)
+    w_std = tls_fn(now_x, now_y)
+    w_pre = w_std
+
+    # 记录 w, b, E, r
+    target_list1, target_list2 = [], []
+    L_list = []
+    w_list, b_list = [], []
+    w_original, b_original, E, r = None, None, None, None
+    iteration = 0
+    while flag and iteration < max_iteration:
+        # E步-1.1: 计算 r E
+        wT = w_std.T.reshape(1, -1)  # 1*m
+        diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
+        denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
+        r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
+        E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
+        # E步-1.2: 更新 diag_x
+        E_std = calStd_fn(E)
+        r_std = calStd_fn(r)
+        for j in range(m):
+            diag_x[j][j] = (r_std + now_correct) / (E_std[j] + now_correct)
+            diag_x_inv[j][j] = (E_std[j] + now_correct) / (r_std + now_correct)
+
+        # 正式训练不需要：查看eta的情况
+        assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
+        assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
+        # print("eta:", (r_std + now_correct) / (E_std + now_correct))
+        # print("E.shape:", E.shape, "  r.shape:", r.shape)
+        # print("E_std:", E_std, "r_std:", r_std)
+        # print("diag_x:", diag_x)
+        # print("diag_x_inv", diag_x_inv)
+
+        # 正式训练不需要：计算 target
+        r_norm = np.sum(r ** 2)  # L2范数的平方
+        E_norm = np.linalg.norm(E @ diag_x, 'fro') ** 2  # F 范数的平方
+        lambda_r = 2 * r.T  # 1*n
+        lapse = (now_x + E) @ w_std - now_y - r  # n*1
+        target = E_norm + r_norm + lambda_r @ lapse
+        target_list1.append(target[0][0])
+        # print("lapse:", lambda_r @ lapse)
+        print('target1:', target[0][0])
+
+        # 已知向量r ，y形状为(n,1), 矩阵E,X形状为(n,m), 对角矩阵diag_x形状为(m,m)， lambda_r=2r^T, 向量w形状为(m,1)，使用numpy求 L\left(E,r,\lambda\right)
+        # =\|r\|_2^2 +\|E \Sigma_x \|_F^2+\lambda\left[\left(X+E\right)w-y-r\right], \lambda\in R^m,
+        norm_r = np.linalg.norm(r) ** 2
+        norm_E_diag_x = np.linalg.norm(E @ diag_x, 'fro') ** 2
+        lambda_r = 2 * np.transpose(r)
+        lambda_term = lambda_r @ ((now_x + E) @ w_std - now_y - r)
+        L = norm_r + norm_E_diag_x + lambda_term
+        print("L:", L[0][0])
+        L_list.append(L[0][0])
+
+        # 计算方式2：
+        lapse1 = now_y - (E + now_x) @ w_std
+        t1 = np.sum(lapse1 ** 2) / (r_std ** 2)
+        t2 = 0
+        for j in range(m):
+            t2 += np.sum((E[:, j]) ** 2) / (E_std[j] ** 2)
+        target_list2.append(t1 + t2)
+
+        # M步: 计算 w_std
+        w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
+        w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
+
+        # 正式训练不需要：计算 w_original b_original 返回
+        w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
+        w_list.append(w_original)
+        b_list.append(b_original)
+
+        # 判断是否结束循环
+        gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
+        w_pre = w_std
+        flag = False if gap <= w_epsilon else True
+        iteration += 1
+
+    w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
+    print(np.array_equal(target_list1, L_list))
+    return w_list, b_list, E, r, target_list1, target_list2, L_list
+
+
+def emTest_fn1(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correct=1e-2, plot_pic=False):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -164,11 +256,11 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correc
     max_iteration = 64
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
-        wT = w_std.T.reshape(1, -1)                 # 1*m
-        diag_x_inv2 = diag_x_inv @ diag_x_inv       # m*m
+        wT = w_std.T.reshape(1, -1)  # 1*m
+        diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
         denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
-        E = -r @ wT @ diag_x_inv2                   # n*1 * 1*m * m*m => n*m 111*5
+        E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x
         E_std = calStd_fn(E)
         r_std = calStd_fn(r)
@@ -196,7 +288,7 @@ def emTest_fn(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correc
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
-        w_std = diag_x @ w1                 # m*m * m*1 = m*1 m=5
+        w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
         # print("w_std.shape", w_std.shape)
 
