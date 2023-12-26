@@ -182,7 +182,7 @@ if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
     # select_feature = ['F2', 'F3', 'F5', 'F6', 'F9']
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'Area_100_10', 'F6']
+    select_feature = ['V1/D2/F2', 'D1/F1', 'F6', 'F3']
     data_all = pd.read_csv(data_path)
     data = data_all[select_feature + ['cycle_life']]
 
@@ -194,7 +194,7 @@ if __name__ == '__main__':
     now_dir = 'noise_test'  # 后面的字符串不同
 
     outer_id = -1
-    noise_pattern = np.array([1.0, 1.0, 0.9, 0.1])  # 1.0, 0.5, 0.01
+    noise_pattern = np.array([0.4, 1.1, 1.0, 1.0, 0.1])  # 1.0, 0.5, 0.01  [1.0, 1.0, 0.9, 0.1]
     print(noise_pattern, "============================================")
     noise_increase(0.0, 0.95, 0.1, test_ratio=0.1, split_num=30, noise_loop=10)
 

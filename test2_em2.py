@@ -30,7 +30,7 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
     y_pred_tls = np.dot(X_test_random, W_tls) + b_tls
     tmp_tls = rmse(Y_test_random, y_pred_tls)[0]
     # EM-TLS
-    W_em_list, b_em_list, E, r, target1, target2, L_list = emTest_fn(X_train_random, Y_train_random, w_epsilon, correct, max_iter_em)
+    W_em_list, b_em_list, E, r, target1, target2 = emTest_fn(X_train_random, Y_train_random, w_epsilon, correct, max_iter_em)
     len_em = len(W_em_list)
     # 记录em的迭代
     tmp_ls_list = [tmp_ls] * len_em
@@ -40,36 +40,41 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
         y_pred_em = np.dot(X_test_random, W_em_list[em_i]) + b_em_list[em_i]
         em_test_list.append(rmse(Y_test_random, y_pred_em)[0])
 
-    print("lapse=========================")
-    print("ls: ", tmp_ls)
-    print("tls:", tmp_tls)
-    print("em: ", em_test_list)
+    # print("lapse=========================")
+    # print("ls: ", tmp_ls)
+    # print("tls:", tmp_tls)
+    # print("em: ", em_test_list)
 
-    fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+    fig, axs = plt.subplots(1, 3, figsize=(12, 6))
     axs[0].plot(tmp_ls_list, label='ls', marker='s')
     axs[0].plot(tmp_tls_list, label='tls', marker='p')
     axs[0].plot(em_test_list, label='em', marker='*')
 
     axs[1].plot(target1, label='target1', color='g', marker='*')
-    axs[1].plot(L_list, label='L')
+    axs[2].plot(target2, label='(now_x + E) @ w_std - now_y - r', color='g', marker='*')
 
-    axs[2].plot(target2, label='target2', color='g', marker='*')
     axs[0].legend()
     axs[1].legend()
     axs[2].legend()
     fig.suptitle('tls vs em with seed ' + str(cur_seed) + ' train_ratio:' + str(train_ratio) + '\n'+str(select_feature), fontsize=16)
 
-    global count
-    if em_test_list[-1] <= tmp_tls <= tmp_ls:
-        count += 1
-        print("yes")
+    global count_em, count_tls, count_ls
+    if em_test_list[-1] <= tmp_ls and em_test_list[-1] <= tmp_tls:
+        count_em += 1
+        # print("em")
         if save_flag:
             now_dir = file_dir
             plt.savefig(os.path.join(now_dir, file_name))
-
+    elif tmp_tls <= tmp_ls and tmp_tls <= em_test_list[-1]:
+        count_tls += 1
+        # print("tls")
+    elif tmp_ls <= tmp_tls and tmp_ls <= em_test_list[-1]:
+        count_ls += 1
+        # print("ls")
     if plot_flag:
         plt.show()
 
+    plt.close()
     pass
 
 
@@ -79,23 +84,26 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
 if __name__ == '__main__':
     # 23569:166    2356:141     # 23579:247    2357:225  235:233  236:21   #  235789:212  235679:148  23567:130
     # 5000: 23579:1187   235:1181  23569:945  2357:1094  2356 766   235:1094
-    select_feature = ['F2', 'F5', 'F3', 'F8', 'D3', 'cycle_life']
+    select_feature = ['F2', 'F3', 'F6', 'cycle_life']
     data_all = pd.read_csv('./data/dataset.csv')
 
-    # select_feature = ['Area_100_10', 'V1/D2/F2', 'F5', 'cycle_life']  # Area23: 66  Area36:68
+    # select_feature = ['V1/D2/F2', 'F3', 'D5/F5', 'cycle_life']
     # data_all = pd.read_csv('./data/build_features.csv')
 
     data = data_all[select_feature]
     file_dir = 'em_test'
-    train_ratio = 0.9
+    train_ratio = 0.90
     w_epsilon, correct, max_iter_em = 1e-6, 0.01, 20  # correct=0.1  23579:255  0.05 251
 
-    count = 0
-    for i in range(0, 10):
-        print(f"seed {i:03d}====================================================================================")
+    count_ls = 0
+    count_tls = 0
+    count_em = 0
+    for i in range(1000):  # 1000： 235(1):606 160 234.  235(data2):571 168 261
+        # print(f"seed {i:03d}====================================================================================")
         now = datetime.now()
         file_name = now.strftime("%Y%m%d%H%M%S") + str(now.microsecond // 1000).zfill(3) + '.png'
-        test_em(i, True, True)
-    print(count)
+        test_em(i, plot_flag=False, save_flag=False)
+
+    print(count_ls, count_tls, count_em)
 
     pass

@@ -18,6 +18,7 @@ plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号。画图�
 plt.rcParams['font.family'] = ['SimSun']
 
 def test(noise_pattern):
+    data_size = data.shape[0]
     N_train_f = N_train = round(data.shape[0] * train_ratio)
     # 记录结果
     mid_tls_rmse = []
@@ -31,10 +32,14 @@ def test(noise_pattern):
         copy_data = copy.deepcopy(data)
         times = j * 0.1
 
-        for p in range(split_num):
-            # 划分训练集与测试集
-            np.random.seed(p)  # 保证每个训练集比例所对应的s次随机排列的顺序一致，每次排序都要使用，写在循环外不起作用
-            random_datax = copy_data.reindex(np.random.permutation(copy_data.index))  # 随机排序
+        for split in range(split_num):
+            np.random.seed(split)  # 保证每个训练集比例所对应的s次随机排列的顺序一致，每次排序都要使用，写在循环外不起作用
+            # 方式1：
+            random_indices = np.random.permutation(data_size)  # 把所有的数据集 随机排序。数据。。。
+            random_datax = copy_data.iloc[random_indices, :]
+            # 方式2：
+            # random_datax = copy_data.reindex(np.random.permutation(copy_data.index))  # 随机排序
+
             X_train_random = random_datax.iloc[:N_train_f, :-1]
             Y_train_random = np.log10(np.array(random_datax.iloc[:N_train_f, -1])).reshape(-1, 1)
             X_test_random = random_datax.iloc[N_train:, :-1]
@@ -69,9 +74,13 @@ def test(noise_pattern):
                 y_pred_em = np.dot(x_test, W_em) + b_em
                 tmp_em.append(rmse(Y_test_random, y_pred_em))
 
-        mid_ls_rmse.append(np.median(tmp_ls))
-        mid_tls_rmse.append(np.median(tmp_tls))
-        mid_em_rmse.append(np.median(tmp_em))
+        # mid_ls_rmse.append(np.median(tmp_ls))
+        # mid_tls_rmse.append(np.median(tmp_tls))
+        # mid_em_rmse.append(np.median(tmp_em))
+
+        mid_ls_rmse.append(np.mean(tmp_ls))
+        mid_tls_rmse.append(np.mean(tmp_tls))
+        mid_em_rmse.append(np.mean(tmp_em))
 
     print("my_ls:  ", mid_ls_rmse)
     print("my_tls: ", mid_tls_rmse)
@@ -85,7 +94,9 @@ def test(noise_pattern):
     plt.ylabel('RMSE')
 
     title = "Noise Ratio VS RMSE\n" + '随机划分数据集次数：' + str(split_num) + ' train_ratio:' + str(train_ratio) + \
-            '  随机生成噪声次数：' + str(noise_loop) + '\n噪声模式：' + str(noise_pattern) + '\n使用特征：' + str(select_feature)
+            '  随机生成噪声次数：' + str(noise_loop) + '\n噪声模式：' + str(noise_pattern) + \
+            "w_epsilon, correct, max_iter_em" + str(w_epsilon) + ',' + str(correct) + ',' + str(max_iter_em) + \
+            '\n使用特征：' + str(select_feature)
     plt.title(title)
     # 进行保存和显示
     file_name = datetime.now().strftime("%Y%m%d%H%M%S") + '.png'
@@ -93,7 +104,7 @@ def test(noise_pattern):
         now_dir = os.path.join(file_dir, 'ok')
         os.makedirs(now_dir, exist_ok=True)
         plt.savefig(os.path.join(now_dir, file_name))
-        plt.show()
+        # plt.show()
     elif mid_em_rmse[-1] <= mid_tls_rmse[-1]:  # and mid_em_rmse[-1] <= mid_ls_rmse[-1]
         now_dir = os.path.join(file_dir, 'em-le-tls')
         os.makedirs(now_dir, exist_ok=True)
@@ -110,17 +121,23 @@ def test(noise_pattern):
         now_dir = os.path.join(file_dir, 'other')
         os.makedirs(now_dir, exist_ok=True)
         plt.savefig(os.path.join(now_dir, file_name))
+    plt.show()
+    plt.close()
     print(now_dir)
 
 
-# 'data/build_features.csv'   'D1/F1', 'Area_100_10',
+# 'data/build_features.csv'   'D1/F1', 'Area_100_10',  'F7', 'F9',
 # 'V1/D2/F2', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
-    select_feature = ['F2', 'F3', 'F5', 'F7', 'F9', 'cycle_life']  # 'F6',
-    data_all = pd.read_csv('./data/dataset.csv')
+    file1, file2 = 'data/dataset.csv', 'data/build_features1.csv'
+    select_feature1 = ['F2', 'F3', 'F6', 'cycle_life']
+    select_feature2 = ['V1/D2/F2', 'F3', 'D5/F5', 'cycle_life']
+
+    data_all = pd.read_csv(file1)
+    select_feature = select_feature1
     data = data_all[select_feature]
 
-    file_dir = 'noise_test2'
+    file_dir = 'noise_test3'
     train_ratio = 0.90
     noise_seq_len = 10
     split_num = 40
@@ -128,20 +145,19 @@ if __name__ == '__main__':
     w_epsilon, correct, max_iter_em = 1e-6, 1e-2, 20
     # F2 0.4~1.0 em<ls  0~0.4 tls<ls   # F3比较小时，em<=ls
 
-    # pattern = np.array([0.9, 0.2, 1.0, 0.3, 0.08])  # y的噪声越小，em tls误差越小。
+    # pattern = np.array([0.3, 1.0, 0.1, 0.1])  # y的噪声越小，em tls误差越小。
     # test(pattern)
 
-    range_list = [0.0, 0.0, 0.0, 1.0]   # np.arange(0.0, 1.1, 0.2)
+    range_list = [0.0, 0.3, 0.7, 1.0]   # np.arange(0.0, 1.1, 0.2)
     outer_id = 0
-
     for h1 in range_list:
         for h2 in range_list:
             for h3 in range_list:
-                for h4 in range_list:
-                    for h5 in range_list:
-                        pattern = np.array([h1, h2, h3, h4, h5, 0.08])
-                        print(outer_id, pattern, "============================================")
-                        test(pattern)
-                        outer_id += 1
+                # for h4 in range_list:
+                #     for h5 in range_list:
+                pattern = np.array([h1, h2, h3, 0.08])
+                print(outer_id, pattern, "============================================")
+                test(pattern)
+                outer_id += 1
 
 

@@ -136,10 +136,8 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
     mean_y = np.mean(train_y, axis=0)
-    now_x = scale(train_x)
-    now_y = scale(train_y)
-    now_x1 = StandardScaler().fit_transform(train_x)
-    now_y1 = StandardScaler().fit_transform(train_y)
+    now_x = StandardScaler().fit_transform(train_x)
+    now_y = StandardScaler().fit_transform(train_y)
 
     flag = True
     m = now_x.shape[1]
@@ -149,8 +147,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     w_pre = w_std
 
     # 记录 w, b, E, r
-    target_list1, target_list2 = [], []
-    L_list = []
+    target_list1, target_list2, target_list3 = [], [], []
     w_list, b_list = [], []
     w_original, b_original, E, r = None, None, None, None
     iteration = 0
@@ -185,25 +182,16 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         target = E_norm + r_norm + lambda_r @ lapse
         target_list1.append(target[0][0])
         # print("lapse:", lambda_r @ lapse)
-        print('target1:', target[0][0])
-
-        # 已知向量r ，y形状为(n,1), 矩阵E,X形状为(n,m), 对角矩阵diag_x形状为(m,m)， lambda_r=2r^T, 向量w形状为(m,1)，使用numpy求 L\left(E,r,\lambda\right)
-        # =\|r\|_2^2 +\|E \Sigma_x \|_F^2+\lambda\left[\left(X+E\right)w-y-r\right], \lambda\in R^m,
-        norm_r = np.linalg.norm(r) ** 2
-        norm_E_diag_x = np.linalg.norm(E @ diag_x, 'fro') ** 2
-        lambda_r = 2 * np.transpose(r)
-        lambda_term = lambda_r @ ((now_x + E) @ w_std - now_y - r)
-        L = norm_r + norm_E_diag_x + lambda_term
-        print("L:", L[0][0])
-        L_list.append(L[0][0])
+        # print('target1:', target[0][0])
 
         # 计算方式2：
-        lapse1 = now_y - (E + now_x) @ w_std
-        t1 = np.sum(lapse1 ** 2) / (r_std ** 2)
-        t2 = 0
-        for j in range(m):
-            t2 += np.sum((E[:, j]) ** 2) / (E_std[j] ** 2)
-        target_list2.append(t1 + t2)
+        # lapse1 = now_y - (E + now_x) @ w_std   # lapse1 != r?!
+        # t1 = np.sum(r ** 2) / (r_std ** 2)
+        # t2 = 0
+        # for j in range(m):
+        #     t2 += np.sum((E[:, j]) ** 2) / (E_std[j] ** 2)
+        loss = ((now_x + E) @ w_std - now_y - r)[0]
+        target_list2.append(loss)
 
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
@@ -221,8 +209,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         iteration += 1
 
     w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
-    print(np.array_equal(target_list1, L_list))
-    return w_list, b_list, E, r, target_list1, target_list2, L_list
+    return w_list, b_list, E, r, target_list1, target_list2
 
 
 def emTest_fn1(train_x, train_y, test_x, test_y, seed, w_epsilon=1e-6, now_correct=1e-2, plot_pic=False):

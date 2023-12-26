@@ -9,7 +9,7 @@ def test_em(test_ratio, cur_seed, plot_flag=True):
     # em 结果 em中就可以确定是否还原y 计算rmse
     em_err, tls_err = emTest_fn(train_x, train_y, test_x, test_y, cur_seed, w_epsilon, correct, plot_pic=plot_flag)
 
-    global count
+    global count_em
     if em_err < tls_err:
         count += 1
         print("yes")
@@ -28,10 +28,10 @@ if __name__ == '__main__':
     correct = variable['correct']
 
     # 噪声模式固定，查看随机划分数据集 和 随机噪声的影响。
-    count = 0
+    count_em = 0
     for i in range(0, 10):
         print(f"seed {i:02d}=================================")
         test_em(0.1, i, True)
-    print(count)
+    print(count_em)
 
     pass
