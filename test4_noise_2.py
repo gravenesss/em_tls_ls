@@ -110,38 +110,39 @@ def test(noise_pattern):
         now_dir = os.path.join(file_dir, 'other')
         os.makedirs(now_dir, exist_ok=True)
         plt.savefig(os.path.join(now_dir, file_name))
+    plt.show()
+    plt.close()
     print(now_dir)
 
 
 # 'data/build_features.csv'   'D1/F1', 'Area_100_10',
 # 'V1/D2/F2', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
-    select_feature = ['F2', 'F3', 'F5', 'F7', 'F9', 'cycle_life']  # 'F6',
+    select_feature = ['F2', 'F3', 'F5', 'cycle_life']  # 'F6',, 'F7', 'F9',
     data_all = pd.read_csv('./data/dataset.csv')
     data = data_all[select_feature]
 
     file_dir = 'noise_test2'
     train_ratio = 0.90
     noise_seq_len = 10
-    split_num = 40
-    noise_loop = 15
+    split_num = 20
+    noise_loop = 40
     w_epsilon, correct, max_iter_em = 1e-6, 1e-2, 20
     # F2 0.4~1.0 em<ls  0~0.4 tls<ls   # F3比较小时，em<=ls
 
-    # pattern = np.array([0.9, 0.2, 1.0, 0.3, 0.08])  # y的噪声越小，em tls误差越小。
-    # test(pattern)
+    pattern = np.array([0.1, 1.0, 0.2, 0.08])  # y的噪声越小，em tls误差越小。 # 暂定 noise_loop=40
+    test(pattern)
 
-    range_list = [0.0, 0.0, 0.0, 1.0]   # np.arange(0.0, 1.1, 0.2)
-    outer_id = 0
-
-    for h1 in range_list:
-        for h2 in range_list:
-            for h3 in range_list:
-                for h4 in range_list:
-                    for h5 in range_list:
-                        pattern = np.array([h1, h2, h3, h4, h5, 0.08])
-                        print(outer_id, pattern, "============================================")
-                        test(pattern)
-                        outer_id += 1
+    # range_list = [0.0, 0.0, 0.0, 1.0]   # np.arange(0.0, 1.1, 0.2)
+    # outer_id = 0
+    # for h1 in range_list:
+    #     for h2 in range_list:
+    #         for h3 in range_list:
+    #             for h4 in range_list:
+    #                 for h5 in range_list:
+    #                     pattern = np.array([h1, h2, h3, h4, h5, 0.08])
+    #                     print(outer_id, pattern, "============================================")
+    #                     test(pattern)
+    #                     outer_id += 1
 
 

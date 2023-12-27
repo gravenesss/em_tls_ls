@@ -131,7 +131,7 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     return w_original, b_original, E, r
 
 
-def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
+def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24, plot_stds=False):
     std_x = np.std(train_x, axis=0)
     mean_x = np.mean(train_x, axis=0)
     std_y = np.std(train_y, axis=0)
@@ -146,6 +146,12 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     w_std = tls_fn(now_x, now_y)
     w_pre = w_std
 
+    feature_lapse_stds = np.zeros(m, dtype=object)
+    feature_lapse_stds[:] = [[] for _ in range(m)]
+    life_lapse_stds = []
+    r_div_E_stds = np.zeros(m, dtype=object)
+    r_div_E_stds[:] = [[] for _ in range(m)]
+
     # 记录 w, b, E, r
     target_list1, target_list2, target_list3 = [], [], []
     w_list, b_list = [], []
@@ -159,18 +165,23 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
         E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x
-        E_std = calStd_fn(E)
-        r_std = calStd_fn(r)
+        E_std = np.std(E, axis=0)  # calStd_fn(E)
+        r_std = np.std(r)   # calStd_fn(r)
         for j in range(m):
             diag_x[j][j] = (r_std + now_correct) / (E_std[j] + now_correct)
             diag_x_inv[j][j] = (E_std[j] + now_correct) / (r_std + now_correct)
 
         # 正式训练不需要：查看eta的情况
-        assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
-        assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
-        # print("eta:", (r_std + now_correct) / (E_std + now_correct))
+        # assert all(xi != 0.0 for xi in E_std), "样本误差 的标准差某一列存在为0的情况"  # assert expr, expr 为 False 时执行
+        # assert all(xi != 0.0 for xi in r_std), "标签误差 的标准差存在为0的情况"
+        eta = (r_std + now_correct) / (E_std + now_correct)
+        # print("r_std:", r_std, "E_std:", E_std)
+        # print("eta:", eta)
+        life_lapse_stds.append(r_std)
+        for i in range(m):
+            feature_lapse_stds[i].append(E_std[i])
+            r_div_E_stds[i].append(eta[i])
         # print("E.shape:", E.shape, "  r.shape:", r.shape)
-        # print("E_std:", E_std, "r_std:", r_std)
         # print("diag_x:", diag_x)
         # print("diag_x_inv", diag_x_inv)
 
@@ -184,12 +195,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         # print("lapse:", lambda_r @ lapse)
         # print('target1:', target[0][0])
 
-        # 计算方式2：
-        # lapse1 = now_y - (E + now_x) @ w_std   # lapse1 != r?!
-        # t1 = np.sum(r ** 2) / (r_std ** 2)
-        # t2 = 0
-        # for j in range(m):
-        #     t2 += np.sum((E[:, j]) ** 2) / (E_std[j] ** 2)
+        # 正式训练不需要：(now_x + E) @ w_std - now_y - r
         loss = ((now_x + E) @ w_std - now_y - r)[0]
         target_list2.append(loss)
 
@@ -201,6 +207,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
         w_list.append(w_original)
         b_list.append(b_original)
+        # print("w_original, b_original:", w_original, b_original)
 
         # 判断是否结束循环
         gap = np.linalg.norm(w_std - w_pre)  # 欧氏距离
@@ -209,6 +216,19 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         iteration += 1
 
     w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
+
+    if plot_stds:
+        plt.plot(life_lapse_stds, label='r_std')
+        plt.legend()
+        fig, axs = plt.subplots(2, m, figsize=(12, 8))
+        for i in range(m):
+            axs[0, i].plot(feature_lapse_stds[i], label='E_std'+str(i))
+            axs[1, i].plot(r_div_E_stds[i], label='r_div_E_stds'+str(i))
+            axs[0, i].legend()
+            axs[1, i].legend()
+        plt.show()
+        plt.close()
+
     return w_list, b_list, E, r, target_list1, target_list2
 
 
