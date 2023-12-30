@@ -1,17 +1,2 @@
-import numpy as np
-import pandas as pd
-
-# np.random.seed(1)
-# random_indices = np.random.permutation(124)
-# print(random_indices)
-# # Load the data from the file
-# file_path = 'data/build_features1.csv'
-# df = pd.read_csv(file_path)
-# df_reordered = df.iloc[random_indices]
-# df_reordered.to_csv(file_path, index=False)
-
-m = 5
-feature_loss_list = np.zeros(m, dtype=object)
-feature_loss_list[:] = [[] for _ in range(m)]
-print(feature_loss_list)
-
+a = [i for i in range(1, 1+3)]
+print(a, type(a))

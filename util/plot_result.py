@@ -10,7 +10,7 @@ plt.rcParams['font.family'] = ['SimSun']
 
 
 # 绘制 x 和各种 y 的曲线
-def plotXYs_fn(x, ys, x_label, y_label, labels, markers, file_dir, file_name, title='RMSE', need_save=True):
+def plotXYs_fn(x, ys, x_label, y_label, labels, markers, file_dir, file_name, title='RMSE', need_show=True, need_save=True):
     # 绘制每一个 y
     for i in range(len(ys)):
         plt.plot(x, ys[i], label=labels[i], marker=markers[i])
@@ -22,11 +22,13 @@ def plotXYs_fn(x, ys, x_label, y_label, labels, markers, file_dir, file_name, ti
     # 进行保存和显示
     if need_save:
         plt.savefig(os.path.join(file_dir, file_name))
-    plt.show()
+    if need_show:
+        plt.show()
+    plt.close()
 
 
 # 绘制 x 和 wb 的曲线。 x为噪声比例增大 或 训练集比例增大。 ys是参数wb的结合。
-def plotXWbs_fn(sequence, ys, x_label, labels, markers, feature_len, file_dir, file_name, need_save=True):
+def plotXWbs_fn(sequence, ys, x_label, labels, markers, feature_len, file_dir, file_name, need_show=True, need_save=True):
     fig, axes = plt.subplots(3, 2, figsize=(10, 10))
 
     # 遍历每个子图 0~6, 最后一个是b
@@ -48,7 +50,9 @@ def plotXWbs_fn(sequence, ys, x_label, labels, markers, feature_len, file_dir, f
     # 进行保存和显示
     if need_save:
         plt.savefig(os.path.join(file_dir, file_name))
-    plt.show()
+    if need_show:
+        plt.show()
+    plt.close()
 
 
 # 绘制 观测值和预测值 的关系  todo: 如何给出多组进行绘制

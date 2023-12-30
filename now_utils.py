@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from scipy.spatial import KDTree
 from sklearn.preprocessing import scale, StandardScaler
 import numpy as np
@@ -11,6 +13,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from util.methods import tls_fn
+from util.plot_result import plotXWbs_fn
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 
@@ -155,6 +158,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     # 记录 w, b, E, r
     target_list1, target_list2, target_list3 = [], [], []
     w_list, b_list = [], []
+    w_std_list, wb_list = [], []
     w_original, b_original, E, r = None, None, None, None
     iteration = 0
     while flag and iteration < max_iteration:
@@ -202,11 +206,13 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         # M步: 计算 w_std
         w1 = tls_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
+        w_std_list.append(w_std.flatten().tolist())
 
         # 正式训练不需要：计算 w_original b_original 返回
         w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
         w_list.append(w_original)
         b_list.append(b_original)
+        wb_list.append(np.vstack((w_original, b_original)).flatten().tolist())
         # print("w_original, b_original:", w_original, b_original)
 
         # 判断是否结束循环
@@ -215,17 +221,31 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         flag = False if gap <= w_epsilon else True
         iteration += 1
 
-    w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
+    # w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
 
     if plot_stds:
         plt.plot(life_lapse_stds, label='r_std')
         plt.legend()
-        fig, axs = plt.subplots(2, m, figsize=(12, 8))
+        fig0, axs0 = plt.subplots(2, m, figsize=(12, 8))
         for i in range(m):
-            axs[0, i].plot(feature_lapse_stds[i], label='E_std'+str(i))
-            axs[1, i].plot(r_div_E_stds[i], label='r_div_E_stds'+str(i))
-            axs[0, i].legend()
-            axs[1, i].legend()
+            axs0[0, i].plot(feature_lapse_stds[i], label='E_std'+str(i))
+            axs0[1, i].plot(r_div_E_stds[i], label='r_div_E_stds'+str(i))
+            axs0[0, i].legend()
+            axs0[1, i].legend()
+
+        # 绘制 w_std 的图像：
+        w_std_list = np.array(w_std_list)
+        fig1, axs1 = plt.subplots(1, m, figsize=(10, 3))
+        for i in range(m):
+            axs1[i].plot(w_std_list[:, i], label='w_std'+str(i), marker='*')
+            axs1[i].legend()
+
+        wb_list = np.array(wb_list)
+        cur_dir = 'em_test'
+        file_name = datetime.now().strftime("%Y%m%d%H%M%S") + ' w_b.png'
+        plotXWbs_fn([ii for ii in range(1, 1+len(wb_list))], [wb_list], 'iterator', ['wb_original'],
+                    ['*'], m, cur_dir, file_name, need_show=True, need_save=False)
+
         plt.show()
         plt.close()
 

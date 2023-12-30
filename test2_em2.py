@@ -30,15 +30,17 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
     y_pred_tls = np.dot(X_test_random, W_tls) + b_tls
     tmp_tls = rmse(Y_test_random, y_pred_tls)[0]
     # EM-TLS
-    W_em_list, b_em_list, E, r, target1, target2 = emTest_fn(X_train_random, Y_train_random, w_epsilon, correct, max_iter_em, False)
+    W_em_list, b_em_list, E, r, target1, target2 = emTest_fn(X_train_random, Y_train_random, w_epsilon, correct, max_iter_em, True)
     len_em = len(W_em_list)
     # 记录em的迭代
     ls_list = [tmp_ls] * len_em
     tls_list = [tmp_tls] * len_em
     em_test_list = []
+    tmp_em_wb = []
     for em_i in range(len_em):
         y_pred_em = np.dot(X_test_random, W_em_list[em_i]) + b_em_list[em_i]
         em_test_list.append(rmse(Y_test_random, y_pred_em)[0])
+        tmp_em_wb.append(np.vstack((W_em_list[em_i], b_em_list[em_i])).flatten().tolist())
 
     # print("lapse=========================")
     # print("ls: ", tmp_ls)
@@ -61,13 +63,13 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
     global count_em, count_tls, count_ls
     now = datetime.now()
     file_name = now.strftime("%Y%m%d%H%M%S") + str(now.microsecond // 1000).zfill(3) + '.png'
-    if em_test_list[-1] <= tmp_ls and em_test_list[-1] <= tmp_tls:
+    if em_test_list[-1] <= tmp_tls:  # em_test_list[-1] <= tmp_ls and
         count_em += 1
         # print("em")
         if save_flag:
             now_dir = file_dir
             plt.savefig(os.path.join(now_dir, file_name))
-    elif tmp_tls <= tmp_ls and tmp_tls <= em_test_list[-1]:
+    elif tmp_tls <= em_test_list[-1]:  # tmp_tls <= tmp_ls and
         count_tls += 1
         # print("tls")
     elif tmp_ls <= tmp_tls and tmp_ls <= em_test_list[-1]:
@@ -85,8 +87,11 @@ def test_em(cur_seed, plot_flag=True, save_flag=True):
 # spearman: ['V1/D2/F2', 'Area_100_10', 'D1/F1', 'F8', 'D3', 'D6', 'F9', 'F7', 'F4', 'D4', 'F3', 'D5/F5', 'F6']
 if __name__ == '__main__':
     file1, file2 = 'data/dataset.csv', 'data/build_features.csv'
-    select_feature1 = ['F2', 'F3', 'F5', 'cycle_life']   # 'F8', 'D3',
-    select_feature2 = ['V1/D2/F2', 'F3', 'D5/F5', 'cycle_life']
+    # tls/em F235：762 238 F236:474 526;  F2368:403 597 F2369:395 605;
+    select_feature1 = ['F2', 'F3', 'F6', 'F9', 'cycle_life']
+    # 0.8tls/em: F235：796 204  F236:429 571;   F2368:364 636  F2369:354 646;  F23569:779 221
+    # 0.9tls/em: F236:395 605 F2368:349 651  F2368D3: 407 593   F23689D3:442 558
+    select_feature2 = ['V1/D2/F2', 'F3', 'F6', 'cycle_life']
     data_all = pd.read_csv(file2)
     select_feature = select_feature2
     data = data_all[select_feature]
@@ -94,17 +99,16 @@ if __name__ == '__main__':
     # print(data.iloc[:84])  # 'cell_key',
 
     file_dir = 'em_test'
-    train_ratio = 0.8
+    train_ratio = 0.9
     w_epsilon, correct, max_iter_em = 1e-6, 1e-1, 20  # correct=0.1  23579:255  0.05 251
 
     count_ls = 0
     count_tls = 0
     count_em = 0
     print("features:", select_feature)
-    for i in range(0, 1000):
-
+    for i in range(0,1):
         # print(f"seed {i:03d}====================================================================================")
-        test_em(i, plot_flag=False, save_flag=False)
+        test_em(i, plot_flag=True, save_flag=False)
     print(count_ls, count_tls, count_em)
 
     pass
