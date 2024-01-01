@@ -146,8 +146,8 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     m = now_x.shape[1]
     diag_x = np.eye(m)
     diag_x_inv = np.eye(m)
-    w_std = tls_fn(now_x, now_y)
-    w_pre = w_std
+    w1 = tls_fn(now_x @ diag_x, now_y)
+    w_std = w_pre = diag_x @ w1
 
     feature_lapse_stds = np.zeros(m, dtype=object)
     feature_lapse_stds[:] = [[] for _ in range(m)]
@@ -165,7 +165,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         # E步-1.1: 计算 r E
         wT = w_std.T.reshape(1, -1)  # 1*m
         diag_x_inv2 = diag_x_inv @ diag_x_inv  # m*m
-        denominator = wT @ diag_x_inv2 @ w_std + 1  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
+        denominator = 1 + wT @ diag_x_inv2 @ w_std  # wt: 1*m tmp_x:m*m  w:m*1 → 1*1
         r = ((now_x @ w_std - now_y) / denominator).reshape(-1, 1)  # n*m * m*1 => n*1 n=124*0.9=111
         E = -r @ wT @ diag_x_inv2  # n*1 * 1*m * m*m => n*m 111*5
         # E步-1.2: 更新 diag_x

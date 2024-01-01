@@ -179,7 +179,7 @@ if __name__ == '__main__':
     # data_path = 'data/dataset.csv'
     # select_feature = ['F2', 'F3', 'F5', 'F6' 'F9']
     data_path = 'data/build_features.csv'
-    select_feature = ['V1/D2/F2', 'F3', 'F6', 'Area_100_10']  # 'D5/F5', 'Area_100_10' 'F9',
+    select_feature = ['V1/D2/F2', 'F3', 'D5/F5']  # 'D5/F5', 'Area_100_10' 'F9',
     data_all = pd.read_csv(data_path)
     data = data_all[select_feature + ['cycle_life']]
 
@@ -188,18 +188,23 @@ if __name__ == '__main__':
     correct = variable['correct']
     max_iter_em = variable['max_iter_em']
     now_dir = variable['train_dir']  # 后面的字符串不同
+    NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + "-1")
+    os.makedirs(NOW_DIR)
 
-    random_seeds = list(range(20))
-    for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
-        np.random.seed(random_id)  # random_seeds[random_id]
-        noise_pattern = np.random.uniform(2, 100, 5)  # todo: 每次特征个数变化后，需要修改长度为特征个数+1。
-        # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-        # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        print(random_id, noise_pattern, "============================================")
-        NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
-        os.makedirs(NOW_DIR)
+    noise_pattern = np.array([0.5, 0.6, 0.9, 0.1])
+    train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=50, noise_loop=30)
 
-        train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=300, noise_loop=100)
+    # random_seeds = list(range(20))
+    # for random_id in random_seeds:  # trange(len(random_seeds), desc='Random Process', unit='loop'):
+    #     np.random.seed(random_id)  # random_seeds[random_id]
+    #     noise_pattern = np.random.uniform(2, 100, 5)  # todo: 每次特征个数变化后，需要修改长度为特征个数+1。
+    #     # noise_pattern = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    #     # noise_pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    #     print(random_id, noise_pattern, "============================================")
+    #     NOW_DIR = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '-' + str(random_id))
+    #     os.makedirs(NOW_DIR)
+    #
+    #     train_data_increase(0.2, 0.9, 0.1, noise_ratio=0.2, split_num=300, noise_loop=100)
     pass
 
 '''

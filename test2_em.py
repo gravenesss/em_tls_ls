@@ -11,7 +11,7 @@ def test_em(test_ratio, cur_seed, plot_flag=True):
 
     global count_em
     if em_err < tls_err:
-        count += 1
+        count_em += 1
         print("yes")
 
     pass

@@ -1,6 +1,5 @@
 import copy
 import os
-from datetime import datetime
 import pandas as pd
 from now_utils import *
 from util.methods import ls, tls
@@ -91,7 +90,7 @@ if __name__ == '__main__':
     select_feature1 = ['F2', 'F3', 'F6', 'F9', 'cycle_life']
     # 0.8tls/em: F235：796 204  F236:429 571;   F2368:364 636  F2369:354 646;  F23569:779 221
     # 0.9tls/em: F236:395 605 F2368:349 651  F2368D3: 407 593   F23689D3:442 558
-    select_feature2 = ['V1/D2/F2', 'F3', 'F6', 'cycle_life']
+    select_feature2 = ['V1/D2/F2', 'F3', 'D5/F5', 'cycle_life']
     data_all = pd.read_csv(file2)
     select_feature = select_feature2
     data = data_all[select_feature]
@@ -106,7 +105,7 @@ if __name__ == '__main__':
     count_tls = 0
     count_em = 0
     print("features:", select_feature)
-    for i in range(0,1):
+    for i in range(1, 2):
         # print(f"seed {i:03d}====================================================================================")
         test_em(i, plot_flag=True, save_flag=False)
     print(count_ls, count_tls, count_em)
