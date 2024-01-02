@@ -7,14 +7,8 @@
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/vcs.xml
 /.idea/other.xml
-/result/
-/result_noise/
-/result_train0/
-/result_train1/
-/pre/result/
-/noise_test/
-/noise_test1/
-/noise_test2/
-/noise_test3/
-/em_test/
+
+/test_em/
+/test_noise/
+/test_train/
 
