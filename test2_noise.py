@@ -197,8 +197,8 @@ if __name__ == '__main__':
     select_feature2 = ['V1/D2/F2', 'F6', 'F7', 'D6']  # 20240102: 236(595/1000)， 2368(642/1000)
 
     # 选择文件和特征
-    data_all = pd.read_csv(file1)
-    select_feature = select_feature1
+    data_all = pd.read_csv(file2)
+    select_feature = select_feature2
     data = (data_all[select_feature + ['cycle_life']]).values
 
     # 初始化参数
