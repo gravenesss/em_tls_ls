@@ -11,6 +11,7 @@ plt.rcParams['font.family'] = ['SimSun']
 
 # 绘制 x 和各种 y 的曲线
 def plotXYs_fn(x, ys, x_label, y_label, labels, markers, file_dir, file_name, title='RMSE', need_show=True, need_save=True):
+    plt.figure(figsize=(10, 8))
     # 绘制每一个 y
     for i in range(len(ys)):
         plt.plot(x, ys[i], label=labels[i], marker=markers[i])

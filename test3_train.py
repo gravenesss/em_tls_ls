@@ -1,23 +1,23 @@
 import copy
 import os
-from datetime import datetime
 import numpy as np
 import pandas as pd
 from tqdm import trange
+from datetime import datetime
+from now_utils import em_fn, lsOrTls_fn, rmse
 from util.plot_result import plotXYs_fn, plotXWbs_fn
 from util.save_read_result import saveCsvRow_fn
-from now_utils import em_fn, rmse, lsOrTls_fn
 
 
-# xi在前面是当前循环内的变量； xi在后面是之前循环拷贝来的数据。
-def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loop):
-    seq_len = int(np.round((noise_max + step - noise_min) / step))  # 0.05~0.5(0.05) 10个
-    noise_sequence = [round(x, 3) for x in np.linspace(noise_min, noise_max + step, seq_len, endpoint=False)]
-    train_size = round(data.shape[0] * train_ratio)  # 进行四舍五入
+def train_data_increase(train_min, train_max, step, noise_ratio, split_num, noise_loop):
+    seq_len = int(np.round((train_max + step - train_min) / step))
+    train_sequence = [round(x, 3) for x in np.linspace(train_min, train_max + step, seq_len, endpoint=False)]
+    data_size = len(data)
+    test_last_10 = int(data_size * 0.1)  # 未进行四舍五入
     all_data = copy.deepcopy(data)
-    # print('noise_sequence: ', noise_sequence, len(noise_sequence))
+    # print("train_sequence: ", train_sequence, len(train_sequence))
 
-    # 0. 记录 tls 和 em 的结果
+    # 0、记录 tls 和 em 的结果
     mid_ls_rmse, mid_ls_wb = [], []
     mid_tls_rmse, mid_tls_wb = [], []
     mid_em_rmse, mid_em_wb = [], []
@@ -25,7 +25,7 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
     start = datetime.now().strftime("%H:%M:%S")
     # 1、噪声比例依次增大
     for now_id in trange(seq_len, desc='Progress', unit='loop'):
-        noise_ratio = noise_sequence[now_id]
+        train_size = int(round(data_size * train_sequence[now_id]))  # todo: 不同 四舍五入了
         tmp_ls_rmse, tmp_ls_wb = [], []
         tmp_tls_rmse, tmp_tls_wb = [], []
         tmp_em_rmse, tmp_em_wb = [], []
@@ -37,8 +37,8 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
             new_data = np.random.permutation(copy_data)  # 不改变源数据
             x1_train = new_data[:train_size, :-1]
             y1_train = np.log10(new_data[:train_size, -1]).reshape(-1, 1)
-            x1_test = new_data[train_size:, :-1]
-            y1_test = np.log10(new_data[train_size:, -1]).reshape(-1, 1)
+            x1_test = new_data[-test_last_10:, :-1]
+            y1_test = np.log10(new_data[-test_last_10:, -1]).reshape(-1, 1)
             # 计算标准差：噪声标准差使用之前的 std
             x1_std_pre = np.std(x1_train, axis=0)
             y1_std_pre = np.std(y1_train, axis=0)
@@ -84,23 +84,6 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
                 tmp_em_rmse.append(err_em_test)
                 tmp_em_wb.append(np.vstack((w_em, b_em)).flatten().tolist())
 
-                # x2_noise_mean = np.mean(x2_noise, axis=0)
-                # x2_noise_std = np.std(x2_noise, axis=0)
-                # y2_noise_mean = np.mean(y2_noise, axis=0)
-                # y2_noise_std = np.std(y2_noise, axis=0)
-                # E_mean = np.mean(E, axis=0)
-                # E_std = np.std(E, axis=0)
-                # r_mean = np.mean(r, axis=0)
-                # r_std = np.std(r, axis=0)
-                if now_id == 1:
-                    # print('train_std:', copy_train_std_x2, copy_train_std_y2)
-                    # print('x_noise_mean:\n', x2_noise_mean, '\n', E_mean)
-                    # print('x_noise_std: \n', x2_noise_std, '\n', E_std)
-                    # print('y_noise_mean:\n', y2_noise_mean, '\n', r_mean)
-                    # print('y_noise_std: \n', y2_noise_std, '\n', r_std)
-                    # print("diag_x_r_E:  \n", y2_noise_std / x2_noise_std, '\n', E_std / r_std)
-                    # print("============================================")
-                    pass
                 pass
             pass
 
@@ -128,13 +111,13 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
     end = datetime.now().strftime("%H:%M:%S")
     print(start + " -- " + end)
 
-    if True:  # mid_ls_rmse[-1] >= mid_em_rmse[-1]:
+    if True:
         # 1.基本处理和判断 tls<=em 且单调递增：seq_len
         cur_dir = os.path.join(now_dir, datetime.now().strftime("%Y%m%d%H%M%S"))
         ok_flag = mid_em_rmse[-1] <= mid_tls_rmse[-1]
         flag_id = 1
         while flag_id < seq_len and ok_flag:
-            if mid_tls_rmse[flag_id] < mid_tls_rmse[flag_id-1] or mid_em_rmse[flag_id] < mid_em_rmse[flag_id-1]:
+            if mid_tls_rmse[flag_id] > mid_tls_rmse[flag_id-1] or mid_em_rmse[flag_id] > mid_em_rmse[flag_id-1]:
                 ok_flag = False
             flag_id += 1
         if ok_flag:
@@ -152,25 +135,24 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
         # print("中位数-tls-wb ：", mid_tls_wb)
         # print("中位数-em-wb  ：", mid_em_wb)
 
-        # 2.进行保存
-        seq = noise_sequence
-        title = "Noise Ratio VS RMSE" + \
-                '\n划分数据集：'+str(split_num) + '  噪声次数：'+str(noise_loop) + '  训练集比例'+str(train_ratio) + \
-                '\nfeature:'+str(select_feature) + '  pattern:'+str(noise_pattern) + \
+        seq = train_sequence
+        title = "Train Size VS RMSE" + \
+                '\n划分数据集：' + str(split_num) + '  噪声次数：' + str(noise_loop) + '  噪声比例' + str(noise_ratio) + \
+                '\nfeature:' + str(select_feature) + '  pattern:' + str(noise_pattern) + \
                 '\nw_dis_epsilon：' + str(w_epsilon) + ', correct: ' + str(correct)
-        x_label = 'Increase of Noise Ratio'
-        x_train_img, x_test_img = 'noise_train.png', 'noise_test.png'
-        wb_img = 'noise_w.png'
+        x_label = 'Proportion of Training Data'
+        x_train_img, x_test_img = 'train_train.png', 'train_test.png'
+        wb_img = 'train_w.png'
         # 保存csv   类型、耗时、特征； 超参w/correct； 噪声模式； 噪声缩放比例； 训练集比例； 划分数据集； 噪声次数
         comments = ['噪声比例增大', '耗时：' + str(start) + ' -- ' + str(end), '特征选择：' + str(select_feature),
                     'hyperparameter：w_dis_epsilon：' + str(w_epsilon) + ',correct:' + str(correct),
                     'noise_pattern ：' + str(noise_pattern),
-                    'noise_scale=  ：' + str(noise_min) + ' => ' + str(noise_max) + '(步长' + str(step) + ')',
-                    'train_ratio   ：' + str(train_ratio),
+                    'noise_scale=  ：' + str(noise_ratio),
+                    'train_ratio=  ：' + str(train_min) + ' => ' + str(train_max) + '(步长' + str(step) + ')',
                     '随机划分数据集次数：' + str(split_num),
                     '随机生成噪声次数 ：' + str(noise_loop)]
-        csv_x = 'noise_ratio'
-        csv_file = 'noise.csv'
+        csv_x = 'train_size'
+        csv_file = 'train.csv'
 
         # 1) 绘制 rmse 图像  完全一样
         plotXYs_fn(seq, [mid_tls_rmse, mid_em_rmse], x_label, 'Test RMSE',
@@ -185,15 +167,12 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
         saveCsvRow_fn(seq, [mid_tls_rmse, mid_em_rmse, mid_tls_wb.tolist(), mid_em_wb.tolist()],
                       csv_x, ['tls_rmse', 'em_rmse', 'tls_wb', 'em_wb'],
                       comments, NOW_DIR, csv_file)
-
     pass
 
 
-# 区别只有：RES_DIR、noise_increase 划分数据集200次，随机噪声50次，减小噪声的影响。
-# 排序后的特征： 'V1/D2/F2', 'D1/F1', 'Area_100_10', 'F6', 'F3', 'F8', 'D3', 'F9', 'F7', 'F4', 'D4', 'D5/F5', 'D6'
 if __name__ == '__main__':
     file1, file2 = 'data/dataset.csv', 'data/build_features.csv'
-    select_feature1 = ['F2', 'F6', 'F7', 'D6']  # ['F2', 'F6', 'F7', 'D6'] 324 676 116
+    select_feature1 = ['F2', 'F6', 'F7', 'D6']
     select_feature2 = ['V1/D2/F2', 'F6', 'F7', 'D6']  # 20240102: 236(595/1000)， 2368(642/1000)
 
     # 选择文件和特征
@@ -202,14 +181,15 @@ if __name__ == '__main__':
     data = (data_all[select_feature + ['cycle_life']]).values
 
     # 初始化参数
-    main_train_ratio = 0.9
+    main_noise_ratio = 0.2
     max_iter_em, w_epsilon, correct = 20, 1e-6, 0.1
     # 划分+噪声模式
     main_split_num, main_noise_loop = 50, 40
-    noise_pattern = np.array([0.2, 0.3, 0.5, 0.7, 0.2])
+    noise_pattern = np.array([0.1, 0.5, 0.7, 0.9, 0.1])
 
     # print(noise_pattern, "============================================")
-    now_dir = 'test_noise'  # 后面的字符串不同
-    noise_increase(0.1, 0.9, 0.1, train_ratio=main_train_ratio, split_num=main_split_num, noise_loop=main_noise_loop)
+    now_dir = 'test_train'  # 后面的字符串不同
+    train_data_increase(0.1, 0.9, 0.1, noise_ratio=main_noise_ratio, split_num=main_split_num, noise_loop=main_noise_loop)
 
     pass
+

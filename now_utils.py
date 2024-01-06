@@ -3,6 +3,7 @@ from sklearn.preprocessing import scale, StandardScaler
 import numpy as np
 from matplotlib import pyplot as plt
 from util.plot_result import plotXWbs_fn
+from scipy.linalg import svd
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 
@@ -93,8 +94,8 @@ def ls(x_train, y_train):
 
 
 # 求模型参数w, Y=WX+b (X^T X)^-1 X^T y。 直接使用 x_new, y_new 进行计算
-def ls_std_fn(x_new, y_new):
-    std_w = np.linalg.inv(x_new.T.dot(x_new)).dot(x_new.T).dot(y_new)
+def ls_std_fn(std_x, std_y):
+    std_w = np.linalg.inv(std_x.T.dot(std_x)).dot(std_x.T).dot(std_y)
     return std_w
 
 
@@ -104,22 +105,36 @@ def tls_std_fn(std_x, std_y):
     B = np.vstack((np.hstack((std_x.T @ std_x, -std_x.T @ std_y)),
                    np.hstack((-std_y.T @ std_x, std_y.T @ std_y))
                    ))
-    # print("B==== ==== ==== ==== \n", B)
 
     # 求B最小特征值对应的特征向量
     w, v = np.linalg.eigh(B)  # w特征值，v特征向量
     min_w_index = np.argsort(w)  # 最小特征值对应的下标，argsort(w)将w中的元素从小到大排列，输出其对应的下标
     min_w_v = v[:, min_w_index[0]].reshape(-1, 1)  # 最小特征值对应的特征向量
-    # print("特征值，特征向量：", w, v)
-    # print("min_value : ", w[min_w_index][0])
-    # print("min_vector: ", min_w_v)
 
     # 求模型参数
-    m = std_x.shape[1]  # 输入特征的个数 m*1
+    m = std_x.shape[1]
     std_w = (min_w_v[0:m] / min_w_v[m]).reshape(-1, 1)
-    # print("w==== ==== ==== ==== \n", std_w)
 
     return std_w
+
+
+def lsOrTls_fn(train_x, train_y, ls_flag=True):
+    std_x = np.std(train_x, axis=0)
+    mean_x = np.mean(train_x, axis=0)
+    std_y = np.std(train_y, axis=0)
+    mean_y = np.mean(train_y, axis=0)
+    now_x = scale(train_x)
+    now_y = scale(train_y)
+
+    m = now_x.shape[1]
+    if ls_flag:
+        std_w = ls_std_fn(now_x, now_y)
+    else:
+        std_w = tls_std_fn(now_x, now_y)
+    original_w, original_b = getWb_fn(m, std_w, std_x, mean_x, std_y, mean_y)
+    return original_w, original_b
+
+    pass
 
 
 def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
@@ -163,7 +178,7 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
         iteration += 1
 
     w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)
-    return w_original, b_original
+    return w_original, b_original, E, r
 
 
 def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24, plot_stds_wb=False):
@@ -198,6 +213,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     # 记录 w, b, E, r
     w_original, b_original, E, r = None, None, None, None
     iteration = 0
+    prev_objective = float('inf')
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
         wT = w_std.T.reshape(1, -1)  # 1*m
@@ -253,9 +269,13 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         # print("w_original, b_original:", w_original, b_original)
 
         # 判断是否结束循环
-        gap = np.linalg.norm(w_std - w_pre)
-        w_pre = w_std
+        current_objective = np.linalg.norm(now_x @ w_std - now_y)**2 / (1 + wT @ diag_x_inv2 @ w_std)
+        gap = np.linalg.norm(current_objective - prev_objective)
+        prev_objective = current_objective
         flag = False if gap <= w_epsilon else True
+        # gap = np.linalg.norm(w_std - w_pre)
+        w_pre = w_std.copy()
+        # flag = False if gap <= w_epsilon else True
         iteration += 1
 
     # w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)

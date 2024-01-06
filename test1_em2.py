@@ -22,11 +22,13 @@ def test_em(cur_seed, plot_flag=True, save_flag=True, plot_stds_wb=True):
     y_test_random = np.log10(new_data[train_num:, -1]).reshape(-1, 1)
 
     # 2、进行训练：LS
-    w_ls, b_ls, = ls(x_train_random, y_train_random)
+    w_ls, b_ls = lsOrTls_fn(x_train_random, y_train_random, ls_flag=True)
+    # w_ls, b_ls, = ls(x_train_random, y_train_random)
     y_pred_ls = np.dot(x_test_random, w_ls) + b_ls
     err_ls = rmse(y_test_random, y_pred_ls)[0]
     # TLS
-    w_tls, b_tls = tls(x_train_random, y_train_random)
+    w_tls, b_tls = lsOrTls_fn(x_train_random, y_train_random, ls_flag=False)
+    # w_tls, b_tls = tls(x_train_random, y_train_random)
     y_pred_tls = np.dot(x_test_random, w_tls) + b_tls
     err_tls = rmse(y_test_random, y_pred_tls)[0]
     # EM-TLS
@@ -59,9 +61,11 @@ def test_em(cur_seed, plot_flag=True, save_flag=True, plot_stds_wb=True):
     # print("ls: ", err_ls)
     # print("tls:", err_tls)
     # print("em: ", em_test_list)
-    global count_ls, count_tls, count_em
-    if em_test_list[-1] <= err_tls:  # em_test_list[-1] <= tmp_ls and
+    global count_ls, count_tls, count_em, all_em
+    if em_test_list[-1] <= err_tls:
         count_em += 1
+        if em_test_list[-1] <= err_ls:
+            all_em += 1
         # print("em")
         if save_flag:
             now = datetime.now()
@@ -86,26 +90,26 @@ def test_em(cur_seed, plot_flag=True, save_flag=True, plot_stds_wb=True):
 # spearman: ['V1/D2/F2', 'Area_100_10', 'D1/F1', 'F8', 'D3', 'D6', 'F9', 'F7', 'F4', 'D4', 'F3', 'D5/F5', 'F6']
 if __name__ == '__main__':
     file1, file2 = 'data/dataset.csv', 'data/build_features.csv'
-    select_feature1 = ['F2', 'F3', 'F5', 'F6']
-    select_feature2 = ['V1/D2/F2', 'F6', 'F3', 'F8']  # 20240102: 236(595/1000)， 2368(642/1000)
+    select_feature1 = ['F2', 'F6', 'F7', 'D6']
+    # 20240102: 236(595/1000)， 2368(642/1000)
+    select_feature2 = ['V1/D2/F2', 'F6', 'F7', 'D6']
 
     # 选择文件和特征
-    data_all = pd.read_csv(file2)
-    select_feature = select_feature2
+    data_all = pd.read_csv(file1)
+    select_feature = select_feature1
     data = (data_all[select_feature + ['cycle_life']]).values
 
     # 初始化参数
     train_ratio = 0.9
-    max_iter_em, w_epsilon, correct = 20, 1e-6, 1e-2
+    max_iter_em, w_epsilon, correct = 40, 1e-6, 1e-1
 
     file_dir = 'test_em/236_file2'  # todo:，每次更换特征需要修改
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
-    count_ls, count_tls, count_em = 0, 0, 0
-    print("features:", select_feature)
+    count_ls, count_tls, count_em, all_em = 0, 0, 0, 0
     for i in range(0, 1000):
         # print(f"seed {i:03d}====================================================================================")
         test_em(i, plot_flag=False, save_flag=False, plot_stds_wb=False)  # plot_stds_wb是EM内的绘制r_std E_std
-    print(count_ls, count_tls, count_em)
+    print(select_feature, count_tls, count_em, all_em)
 
     pass
