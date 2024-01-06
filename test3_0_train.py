@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from tqdm import trange
 from datetime import datetime
-from now_utils import em_fn, lsOrTls_fn, rmse
+from now_utils import em_fn, lsOrTls_fn, rmse_fn
 from util.plot_result import plotXYs_fn, plotXWbs_fn
 from util.save_read_result import saveCsvRow_fn
 
@@ -44,17 +44,17 @@ def train_data_increase(train_min, train_max, step, split_num):
             # 3）进行训练 并 记录每次实验的 rmse 和 wb
             # LS
             w_ls, b_ls = lsOrTls_fn(x1_train, y1_train, ls_flag=True)
-            err_ls = rmse(y1_test, np.dot(x1_test, w_ls) + b_ls)[0]
+            err_ls = rmse_fn(y1_test, np.dot(x1_test, w_ls) + b_ls)[0]
             tmp_ls_rmse.append(err_ls)
             tmp_ls_wb.append(np.vstack((w_ls, b_ls)).flatten().tolist())
             # TLS
             w_tls, b_tls = lsOrTls_fn(x1_train, y1_train, ls_flag=False)
-            err_tls_test = rmse(y1_test, np.dot(x1_test, w_tls) + b_tls)[0]
+            err_tls_test = rmse_fn(y1_test, np.dot(x1_test, w_tls) + b_tls)[0]
             tmp_tls_rmse.append(err_tls_test)
             tmp_tls_wb.append(np.vstack((w_tls, b_tls)).flatten().tolist())
             # EM
             w_em, b_em, E, r = em_fn(x1_train, y1_train, w_epsilon, correct, max_iter_em)
-            err_em_test = rmse(y1_test, np.dot(x1_test, w_em) + b_em)[0]
+            err_em_test = rmse_fn(y1_test, np.dot(x1_test, w_em) + b_em)[0]
             tmp_em_rmse.append(err_em_test)
             tmp_em_wb.append(np.vstack((w_em, b_em)).flatten().tolist())
 

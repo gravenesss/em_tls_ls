@@ -3,12 +3,11 @@ from sklearn.preprocessing import scale, StandardScaler
 import numpy as np
 from matplotlib import pyplot as plt
 from util.plot_result import plotXWbs_fn
-from scipy.linalg import svd
 
 np.set_printoptions(linewidth=np.inf)  # 设置ndaary一行显示，不折行
 
 
-def rmse(y_true, y_pred):
+def rmse_fn(y_true, y_pred):
     return np.sqrt(sum(np.square(y_true - y_pred)) / len(y_true))
 
 
@@ -33,74 +32,14 @@ def calStd_fn(matrix):
     return std
 
 
-def tls(x_train, y_train):
-    # 标准化X_train
-    standard_X = np.std(x_train, axis=0).reshape(-1, 1)
-    stand_scaler = StandardScaler()
-    std_X = stand_scaler.fit_transform(x_train)
-    mean_X = stand_scaler.mean_.reshape(-1, 1)
-
-    # 标准化Y_train
-    mean_Y = np.array(np.mean(y_train)).reshape(-1, 1)
-    standard_Y = np.std(y_train, axis=0).reshape(-1, 1)
-    std_Y = (y_train - mean_Y) / standard_Y
-
-    # 定义矩阵B
-    B = np.vstack((np.hstack((np.dot(std_X.T, std_X), np.dot(-std_X.T, std_Y))),
-                   np.hstack((np.dot(-std_Y.T, std_X), np.dot(std_Y.T, std_Y)))))
-
-    # 求B最小特征值对应的特征向量
-    w, v = np.linalg.eigh(B)  # w特征值，v特征向量
-    min_w_index = np.argsort(w)  # 最小特征值对应的下标，argsort(w)将w中的元素从小到大排列，输出其对应的下标
-    min_w_v = v[:, min_w_index[0]].reshape(-1, 1)  # 最小特征值对应的特征向量
-    # min_w_v = v[min_w_index[0], :].reshape(-1, 1)
-    n = std_X.shape[1]  # 输入特征的个数
-    std_W = (min_w_v[0:n] / min_w_v[n]).reshape(-1, 1)
-
-    # 求模型参数
-    W = np.dot(std_W, standard_Y) / standard_X
-    # 计算b
-    _ = 0
-    for i in range(n):
-        _ = _ + std_W[i] * mean_X[i] * standard_Y / standard_X[i]
-    b = mean_Y - _
-
-    return W, b
-
-
-def ls(x_train, y_train):
-    # 标准化X_train
-    standard_X = np.std(x_train, axis=0).reshape(-1, 1)  # 加入噪声后的标准差
-    stand_scaler = StandardScaler()
-    std_X = stand_scaler.fit_transform(x_train)
-    mean_X = stand_scaler.mean_.reshape(-1, 1)
-
-    # 标准化Y_train
-    mean_Y = np.array(np.mean(y_train)).reshape(-1, 1)
-    standard_Y = np.std(y_train, axis=0).reshape(-1, 1)
-    std_Y = (y_train - mean_Y) / standard_Y
-
-    # 求模型参数,Y=WX+b
-    std_W = np.dot(np.dot(np.linalg.inv(np.dot(std_X.T, std_X)), std_X.T), std_Y)
-    W = np.dot(std_W, standard_Y) / standard_X
-
-    # 计算b
-    n = x_train.shape[1]
-    _ = 0
-    for i in range(n):
-        _ = _ + std_W[i] * mean_X[i] * standard_Y / standard_X[i]
-    b = mean_Y - _
-    return W, b
-
-
 # 求模型参数w, Y=WX+b (X^T X)^-1 X^T y。 直接使用 x_new, y_new 进行计算
-def ls_std_fn(std_x, std_y):
+def lsStd_fn(std_x, std_y):
     std_w = np.linalg.inv(std_x.T.dot(std_x)).dot(std_x.T).dot(std_y)
     return std_w
 
 
 # 求模型参数w,  x y 在 tls内部未进行标准化  w未进行还原
-def tls_std_fn(std_x, std_y):
+def tlsStd_fn(std_x, std_y):
     # 定义矩阵B
     B = np.vstack((np.hstack((std_x.T @ std_x, -std_x.T @ std_y)),
                    np.hstack((-std_y.T @ std_x, std_y.T @ std_y))
@@ -128,9 +67,9 @@ def lsOrTls_fn(train_x, train_y, ls_flag=True):
 
     m = now_x.shape[1]
     if ls_flag:
-        std_w = ls_std_fn(now_x, now_y)
+        std_w = lsStd_fn(now_x, now_y)
     else:
-        std_w = tls_std_fn(now_x, now_y)
+        std_w = tlsStd_fn(now_x, now_y)
     original_w, original_b = getWb_fn(m, std_w, std_x, mean_x, std_y, mean_y)
     return original_w, original_b
 
@@ -149,9 +88,10 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
     m = now_x.shape[1]
     diag_x = np.eye(m)
     diag_x_inv = np.eye(m)
-    w1 = tls_std_fn(now_x @ diag_x, now_y)
+    w1 = tlsStd_fn(now_x @ diag_x, now_y)
     w_std = w_pre = diag_x @ w1
 
+    E, r = None, None
     iteration = 0
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
@@ -168,7 +108,7 @@ def em_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=24):
             diag_x_inv[j][j] = (E_std[j] + now_correct) / (r_std + now_correct)
 
         # M步: 计算 w_std
-        w1 = tls_std_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
+        w1 = tlsStd_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
 
         # 判断是否结束循环
@@ -193,7 +133,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     m = now_x.shape[1]
     diag_x = np.eye(m)
     diag_x_inv = np.eye(m)
-    w1 = tls_std_fn(now_x @ diag_x, now_y)
+    w1 = tlsStd_fn(now_x @ diag_x, now_y)
     w_std = w_pre = diag_x @ w1
 
     # E_stds
@@ -213,7 +153,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
     # 记录 w, b, E, r
     w_original, b_original, E, r = None, None, None, None
     iteration = 0
-    prev_objective = float('inf')
+    # prev_objective = float('inf')
     while flag and iteration < max_iteration:
         # E步-1.1: 计算 r E
         wT = w_std.T.reshape(1, -1)  # 1*m
@@ -257,7 +197,7 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         target_list2.append(loss)
 
         # M步: 计算 w_std
-        w1 = tls_std_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
+        w1 = tlsStd_fn(now_x @ diag_x, now_y)  # x'=x*diag_x  w'=diag_x_inv*w  w=diag_x*w'  → w1 m*1
         w_std = diag_x @ w1  # m*m * m*1 = m*1 m=5
         w_std_list.append(w_std.flatten().tolist())
 
@@ -269,13 +209,13 @@ def emTest_fn(train_x, train_y, w_epsilon=1e-6, now_correct=1e-2, max_iteration=
         # print("w_original, b_original:", w_original, b_original)
 
         # 判断是否结束循环
-        current_objective = np.linalg.norm(now_x @ w_std - now_y)**2 / (1 + wT @ diag_x_inv2 @ w_std)
-        gap = np.linalg.norm(current_objective - prev_objective)
-        prev_objective = current_objective
-        flag = False if gap <= w_epsilon else True
-        # gap = np.linalg.norm(w_std - w_pre)
-        w_pre = w_std.copy()
+        # current_objective = np.linalg.norm(now_x @ w_std - now_y)**2 / (1 + wT @ diag_x_inv2 @ w_std)
+        # gap = np.linalg.norm(current_objective - prev_objective)
+        # prev_objective = current_objective
         # flag = False if gap <= w_epsilon else True
+        gap = np.linalg.norm(w_std - w_pre)
+        w_pre = w_std.copy()
+        flag = False if gap <= w_epsilon else True
         iteration += 1
 
     # w_original, b_original = getWb_fn(m, w_std, std_x, mean_x, std_y, mean_y)

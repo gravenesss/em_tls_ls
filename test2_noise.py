@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm import trange
 from util.plot_result import plotXYs_fn, plotXWbs_fn
 from util.save_read_result import saveCsvRow_fn
-from now_utils import em_fn, rmse, lsOrTls_fn
+from now_utils import em_fn, rmse_fn, lsOrTls_fn
 
 
 # xi在前面是当前循环内的变量； xi在后面是之前循环拷贝来的数据。
@@ -70,17 +70,17 @@ def noise_increase(noise_min, noise_max, step, train_ratio, split_num, noise_loo
                 # 3）进行训练 并 记录每次实验的 rmse 和 wb
                 # LS
                 w_ls, b_ls = lsOrTls_fn(x2_with_noise, y2_with_noise, ls_flag=True)
-                err_ls = rmse(copy_test_y2, np.dot(copy_test_x2, w_ls) + b_ls)[0]
+                err_ls = rmse_fn(copy_test_y2, np.dot(copy_test_x2, w_ls) + b_ls)[0]
                 tmp_ls_rmse.append(err_ls)
                 tmp_ls_wb.append(np.vstack((w_ls, b_ls)).flatten().tolist())
                 # TLS
                 w_tls, b_tls = lsOrTls_fn(x2_with_noise, y2_with_noise, ls_flag=False)
-                err_tls_test = rmse(copy_test_y2, np.dot(copy_test_x2, w_tls) + b_tls)[0]
+                err_tls_test = rmse_fn(copy_test_y2, np.dot(copy_test_x2, w_tls) + b_tls)[0]
                 tmp_tls_rmse.append(err_tls_test)
                 tmp_tls_wb.append(np.vstack((w_tls, b_tls)).flatten().tolist())
                 # EM
                 w_em, b_em, E, r = em_fn(x2_with_noise, y2_with_noise, w_epsilon, correct, max_iter_em)
-                err_em_test = rmse(copy_test_y2, np.dot(copy_test_x2, w_em) + b_em)[0]
+                err_em_test = rmse_fn(copy_test_y2, np.dot(copy_test_x2, w_em) + b_em)[0]
                 tmp_em_rmse.append(err_em_test)
                 tmp_em_wb.append(np.vstack((w_em, b_em)).flatten().tolist())
 

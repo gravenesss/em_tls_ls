@@ -25,12 +25,12 @@ def test_em(cur_seed, plot_flag=True, save_flag=True, plot_stds_wb=True):
     w_ls, b_ls = lsOrTls_fn(x_train_random, y_train_random, ls_flag=True)
     # w_ls, b_ls, = ls(x_train_random, y_train_random)
     y_pred_ls = np.dot(x_test_random, w_ls) + b_ls
-    err_ls = rmse(y_test_random, y_pred_ls)[0]
+    err_ls = rmse_fn(y_test_random, y_pred_ls)[0]
     # TLS
     w_tls, b_tls = lsOrTls_fn(x_train_random, y_train_random, ls_flag=False)
     # w_tls, b_tls = tls(x_train_random, y_train_random)
     y_pred_tls = np.dot(x_test_random, w_tls) + b_tls
-    err_tls = rmse(y_test_random, y_pred_tls)[0]
+    err_tls = rmse_fn(y_test_random, y_pred_tls)[0]
     # EM-TLS
     w_em_list, b_em_list, E, r, target1, target2 = emTest_fn(x_train_random, y_train_random, w_epsilon, correct,
                                                              max_iter_em, plot_stds_wb=plot_stds_wb)
@@ -41,7 +41,7 @@ def test_em(cur_seed, plot_flag=True, save_flag=True, plot_stds_wb=True):
     em_test_list = []
     for em_i in range(len_em):
         y_pred_em = np.dot(x_test_random, w_em_list[em_i]) + b_em_list[em_i]
-        em_test_list.append(rmse(y_test_random, y_pred_em)[0])
+        em_test_list.append(rmse_fn(y_test_random, y_pred_em)[0])
     # 3.2、绘制 ls_err, tls_err, em_err
     fig, axs = plt.subplots(1, 3, figsize=(12, 6))
     axs[0].plot(ls_list, label='ls', marker='s')
@@ -95,8 +95,8 @@ if __name__ == '__main__':
     select_feature2 = ['V1/D2/F2', 'F6', 'F7', 'D6']
 
     # 选择文件和特征
-    data_all = pd.read_csv(file1)
-    select_feature = select_feature1
+    data_all = pd.read_csv(file2)
+    select_feature = select_feature2
     data = (data_all[select_feature + ['cycle_life']]).values
 
     # 初始化参数
